@@ -2,22 +2,24 @@ package zynq
 {
 
 import chisel3._
-import uncore.tilelink2._
-import diplomacy._
+import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.tilelink._
 import util._
-import uncore.axi4._
-import config._
+import freechips.rocketchip.amba.axi4._
+import freechips.rocketchip.util._
+import freechips.rocketchip.devices.tilelink._
+import freechips.rocketchip.config._
 import Common._   
 import RV32_3stage._
 
 class TLToDMIBundle(val outer: TLToDMI)(implicit p: Parameters) extends Bundle(){
    val dmi = new DMIIO()
-   val tl_in = outer.slaveDebug.bundleIn
+   val tl_in = HeterogeneousBag.fromNode(outer.slaveDebug.in)
 }
 
 class TLToDMIModule(val outer: TLToDMI)(implicit p: Parameters) extends LazyModuleImp(outer){
    val io = new TLToDMIBundle(outer)
-   val edge_in = outer.slaveDebug.edgesIn.head
+   val edge_in = outer.slaveDebug.in.unzip._2.head
    val tl_in = io.tl_in.head
    val areq = RegEnable(tl_in.a.bits, tl_in.a.fire())
    val temp3 = Wire(init = false.B)
@@ -88,7 +90,7 @@ class SodorTile(implicit p: Parameters) extends LazyModule
    private val device = new MemoryDevice
    val config = p(ExtMem)
    val mmio = p(MMIO)
-   val mem_axi4 = AXI4BlindOutputNode(Seq(  
+   val mem_axi4 = AXI4SlaveNode(Seq(  
     AXI4SlavePortParameters(
       slaves = Seq(AXI4SlaveParameters(
               address       = Seq(AddressSet(config.base, config.size-1),AddressSet(mmio.base, mmio.size-1)),
@@ -113,8 +115,9 @@ class SodorTile(implicit p: Parameters) extends LazyModule
    tlxbar.node := memory.masterData 
 
    val tlxbar2 = LazyModule(new TLXbar)
-   val error = LazyModule(new TLError(address = Seq(AddressSet(0x3000, 0xfff))))
-   val ps_slave = AXI4BlindInputNode(Seq(AXI4MasterPortParameters(
+   val error = LazyModule(new TLError(params = ErrorParams(address = Seq(AddressSet(0x3000, 0xfff)),
+        maxAtomic = 0, maxTransfer = 1)))
+   val ps_slave = AXI4MasterNode(Seq(AXI4MasterPortParameters(
     masters = Seq(AXI4MasterParameters(name = "AXI4 periphery")))))
 
    error.node := tlxbar2.node

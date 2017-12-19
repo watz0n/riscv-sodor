@@ -2,10 +2,11 @@ package zynq
 
 import chisel3._
 import chisel3.iotesters._
-import config._
-import diplomacy._
+import freechips.rocketchip.config._
 import scala.collection.mutable.HashMap
-import uncore.tilelink2._
+import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.tilelink._
+import freechips.rocketchip.util._
 import RV32_3stage.Constants._
 
 object ReferenceChipBackend {
@@ -17,13 +18,10 @@ case object ExtMem extends Field[MasterConfig]
 case object MMIO extends Field[MasterConfig]
 case object DebugAddrSlave extends Field[MasterConfig]
 class WithZynqAdapter extends Config((site, here, up) => {
-  case junctions.NastiKey => junctions.NastiParameters(dataBits = 32,
-      addrBits = 32,idBits = 12)
   case ExtMem => MasterConfig(base= 0x10000000L, size= 0x10000000L, beatBytes= 4, idBits= 4)
   case MMIO => MasterConfig(base= 0x40000000L, size= 0x10000L, beatBytes= 4, idBits= 4)
   case DebugAddrSlave => MasterConfig(base= 0x40000000L, size= 0x10000000L, beatBytes= 4, idBits= 4)
   case TLMonitorBuilder => (args: TLMonitorArgs) => None
-  case TLCombinationalCheck => false
   case Common.xprlen => 32
   case Common.usingUser => false
   case NUM_MEMORY_PORTS => 2

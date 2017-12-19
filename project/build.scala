@@ -40,9 +40,15 @@ object BuildSettings extends Build {
     ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_ucode")) dependsOn(common)
   lazy val fpgatop  = Project("fpgatop", file("fpgatop"), settings = buildSettings ++ chipSettings
     ++Seq(scalaSource in Compile := baseDirectory.value / "../src/fpgatop")
-    ++Seq(resourceDirectory in Compile := baseDirectory.value / "../vsrc")) dependsOn(common,rv32_3stage)
+    ++Seq(resourceDirectory in Compile := baseDirectory.value / "../vsrc")) dependsOn(common,rv32_3stage,rocketchip)
   lazy val zynqsimtop  = Project("zynqsimtop", file("zynqsimtop"), settings = buildSettings ++ chipSettings
     ++Seq(scalaSource in Compile := baseDirectory.value / "../src/zynqsimtop")) dependsOn(fpgatop)
+  lazy val macros  = Project("macros", file("macros"), settings = buildSettings ++ chipSettings
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../freechipsproject/macros"))
+  lazy val hardfloat  = Project("hardfloat", file("hardfloat"), settings = buildSettings ++ chipSettings
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../freechipsproject/hardfloat"))
+  lazy val rocketchip  = Project("rocketchip", file("rocketchip"), settings = buildSettings ++ chipSettings
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../freechipsproject/rocket-chip")) dependsOn(macros,hardfloat,common)
 
   val elaborateTask = InputKey[Unit]("elaborate", "convert chisel components into backend source code")
   val makeTask = InputKey[Unit]("make", "trigger backend-specific makefile command")

@@ -1,32 +1,29 @@
 package zynq
 
-import config._
+import freechips.rocketchip.config._
 import chisel3._
 import chisel3.util._
-import uncore.tilelink2._
-import diplomacy._
 import zynq._
-import util._
-import uncore.axi4._
-import uncore.converters._
-import uncore.util._
+import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.tilelink._
+import freechips.rocketchip.util._
 import Common._
 import Common.Util._
 
 
 class MemAccessToTL(num_core_ports: Int, num_bytes: Int = (1 << 21))(implicit p: Parameters) extends LazyModule {
-   val masterInstr = TLClientNode(TLClientParameters(name = s"Core Instr"))
-   val masterData = TLClientNode(TLClientParameters(name = s"Core Data"))
-   val masterDebug = TLClientNode(TLClientParameters(name = s"Debug MemAccess"))
+   val masterInstr = TLClientNode(Seq(TLClientPortParameters(clients = Seq(TLClientParameters(name = s"Core Instr")))))
+   val masterData = TLClientNode(Seq(TLClientPortParameters(clients = Seq(TLClientParameters(name = s"Core Data")))))
+   val masterDebug = TLClientNode(Seq(TLClientPortParameters(clients = Seq(TLClientParameters(name = s"Debug MemAccess")))))
    lazy val module = new MemAccessToTLModule(this,num_core_ports)
 }
 
 class MemAccessToTLBundle(outer: MemAccessToTL,num_core_ports: Int)(implicit p: Parameters) extends Bundle(){
    val core_ports = Vec(num_core_ports, Flipped(new MemPortIo(data_width = p(xprlen))) )
    val debug_port = Flipped(new MemPortIo(data_width = p(xprlen)))  
-   val tl_data = outer.masterData.bundleOut
-   val tl_instr = outer.masterInstr.bundleOut 
-   val tl_debug = outer.masterDebug.bundleOut  
+   val tl_data = HeterogeneousBag.fromNode(outer.masterData.out) 
+   val tl_instr = HeterogeneousBag.fromNode(outer.masterInstr.out) 
+   val tl_debug = HeterogeneousBag.fromNode(outer.masterDebug.out) 
 }
 
 class MemAccessToTLModule(outer: MemAccessToTL,num_core_ports: Int, num_bytes: Int = (1 << 21))(implicit p: Parameters) extends LazyModuleImp(outer) with Common.MemoryOpConstants
@@ -64,7 +61,7 @@ class MemAccessToTLModule(outer: MemAccessToTL,num_core_ports: Int, num_bytes: I
    val reg_typd = Reg(UInt(3.W))
    reg_typd := io.core_ports(DPORT).req.bits.typ
    wire_typd := io.core_ports(DPORT).req.bits.typ
-   val resp_datai = tl_data.d.bits.data >> (tl_data.d.bits.addr_lo << 3.U)
+   val resp_datai = tl_data.d.bits.data >> (tl_data.d.bits.addr(1,0) << 3.U)
    val req_addr_lo = io.core_ports(DPORT).req.bits.addr(1,0)
    val req_wdata = io.core_ports(DPORT).req.bits.data
 
