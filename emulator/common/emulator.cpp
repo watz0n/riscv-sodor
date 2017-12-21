@@ -68,12 +68,12 @@ int main(int argc, char** argv)
    }
 
 
+   Verilated::commandArgs(argc, argv);   
    VTop dut; // design under test, aka, your chisel code
 
    //Instantiated DTM
    dtm = new dtm_t(to_dtm);
    fprintf(stderr, "Instantiated DTM.\n");
-
 #if VM_TRACE
    Verilated::traceEverOn(true); // Verilator must compute traced signals
    std::unique_ptr<VerilatedVcdFILE> vcdfd(new VerilatedVcdFILE(vcdfile));

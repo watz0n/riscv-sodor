@@ -4,14 +4,16 @@ import chisel3._
 import chisel3.iotesters._
 import zynq._
 import Common._
-import diplomacy._
-import uncore.axi4._
-import config.{Parameters, Field}
 import RV32_3stage.Constants._
+import freechips.rocketchip.config._
+import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.tilelink._
+import freechips.rocketchip.util._
+import freechips.rocketchip.amba.axi4._
 
 class DMItoAXI4(top: Top)(implicit p: Parameters) extends Module {
   val io = IO(new Bundle {
-    val ps_axi_slave = top.tile.io.ps_slave.cloneType
+    val ps_axi_slave = top.tile.ps_slave.cloneType
     val dmi = Flipped(new DMIIO())
     val success = Output(Bool())
   })
@@ -68,7 +70,7 @@ class Top extends Module {
     val success = Output(Bool())
   })
   val axi4todmi = Module(new DMItoAXI4(this)(inParams))
-  tile.io.ps_slave <> axi4todmi.io.ps_axi_slave
+  tile.ps_slave.head <> axi4todmi.io.ps_axi_slave
   io.success := axi4todmi.io.success
   val dtm = Module(new SimDTM()(inParams)).connect(clock, reset.toBool, axi4todmi.io.dmi, io.success)
 }

@@ -5,7 +5,7 @@ import chisel3.util._
 import Common._
 import Util._
 import Constants._
-import config._
+import freechips.rocketchip.config._
 
 object DMConsts{
 

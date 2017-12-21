@@ -21,18 +21,15 @@ class MemAccessToTL(num_core_ports: Int, num_bytes: Int = (1 << 21))(implicit p:
 class MemAccessToTLBundle(outer: MemAccessToTL,num_core_ports: Int)(implicit p: Parameters) extends Bundle(){
    val core_ports = Vec(num_core_ports, Flipped(new MemPortIo(data_width = p(xprlen))) )
    val debug_port = Flipped(new MemPortIo(data_width = p(xprlen)))  
-   val tl_data = HeterogeneousBag.fromNode(outer.masterData.out) 
-   val tl_instr = HeterogeneousBag.fromNode(outer.masterInstr.out) 
-   val tl_debug = HeterogeneousBag.fromNode(outer.masterDebug.out) 
 }
 
 class MemAccessToTLModule(outer: MemAccessToTL,num_core_ports: Int, num_bytes: Int = (1 << 21))(implicit p: Parameters) extends LazyModuleImp(outer) with Common.MemoryOpConstants
 {
-   val io = new MemAccessToTLBundle(outer,num_core_ports)
+   val io = IO(new MemAccessToTLBundle(outer,num_core_ports))
 
-   val tl_debug = io.tl_debug.head
-   val tl_data = io.tl_data.head
-   val tl_instr = io.tl_instr.head
+   val tl_debug = outer.masterDebug.out.head._1
+   val tl_data = outer.masterData.out.head._1
+   val tl_instr = outer.masterInstr.out.head._1
 
    ///////////// IPORT
    if (num_core_ports == 2){
@@ -61,8 +58,9 @@ class MemAccessToTLModule(outer: MemAccessToTL,num_core_ports: Int, num_bytes: I
    val reg_typd = Reg(UInt(3.W))
    reg_typd := io.core_ports(DPORT).req.bits.typ
    wire_typd := io.core_ports(DPORT).req.bits.typ
-   val resp_datai = tl_data.d.bits.data >> (tl_data.d.bits.addr(1,0) << 3.U)
    val req_addr_lo = io.core_ports(DPORT).req.bits.addr(1,0)
+   val reg_req_addr_lo = Reg(next = req_addr_lo)
+   val resp_datai = tl_data.d.bits.data >> (reg_req_addr_lo << 3.U)
    val req_wdata = io.core_ports(DPORT).req.bits.data
 
    io.core_ports(DPORT).resp.bits.data := MuxCase(resp_datai,Array(

@@ -2,31 +2,31 @@
 // RISCV Processor Tile
 //--------------------------------------------------------------------------
 //
-// Christopher Celio
-// 2013 Jun 28
 
 package zynqsimtop
 {
 
 import chisel3._
 import chisel3.util._
-import uncore.tilelink2._
-import diplomacy._
-import zynq._
-import uncore.axi4._
-import config._
-import Common._   
 import RV32_3stage._
+import zynq._
+import Common._   
+import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.tilelink._
+import freechips.rocketchip.util._
+import freechips.rocketchip.config._
+import freechips.rocketchip.amba.axi4._
+import freechips.rocketchip.util._
+import freechips.rocketchip.devices.tilelink._
 
 class TLToDMIBundle(val outer: TLToDMI)(implicit p: Parameters) extends Bundle(){
    val dmi = new DMIIO()
-   val tl_in = outer.slaveDebug.bundleIn
+   val tl_in = HeterogeneousBag.fromNode(outer.slaveDebug.in)
 }
 
 class TLToDMIModule(val outer: TLToDMI)(implicit p: Parameters) extends LazyModuleImp(outer){
-   val io = new TLToDMIBundle(outer)
-   val edge_in = outer.slaveDebug.edgesIn.head
-   val tl_in = io.tl_in.head
+   val io = IO(new TLToDMIBundle(outer))
+   val (tl_in, edge_in) = outer.slaveDebug.in.head
    val areq = RegEnable(tl_in.a.bits, tl_in.a.fire())
    val temp3 = Wire(init = false.B)
    io.dmi.req.valid := tl_in.a.valid
@@ -65,15 +65,19 @@ class TLToDMI(implicit p: Parameters) extends LazyModule{
 }
 
 class SodorTileBundle(outer: SodorTile)(implicit p: Parameters) extends Bundle {
-    val ps_slave = outer.ps_slave.bundleIn
+    val ps_slave = Flipped(HeterogeneousBag.fromNode(outer.ps_slave.out))
 }
 
 class SodorTileModule(outer: SodorTile)(implicit p: Parameters) extends LazyModuleImp(outer){
-   val io = IO(new SodorTileBundle(outer))
+   val ps_slave = IO(Flipped(HeterogeneousBag.fromNode(outer.ps_slave.out)))
+
    val core   = Module(new Core())
    val memory = outer.memory.module 
    val tldmi = outer.tldmi.module
    val debug = Module(new DebugModule())
+   
+   outer.ps_slave.out.head._1 <> ps_slave.head
+
    core.reset := debug.io.resetcore | reset.toBool
 
    core.io.dmem <> memory.io.core_ports(0)
@@ -98,30 +102,34 @@ class SodorTile(implicit p: Parameters) extends LazyModule
    
    val tlxbar = LazyModule(new TLXbar)
    val ram = LazyModule(new AXI4RAM(AddressSet(config.base, config.size - 1)))
-   ram.node := AXI4Buffer()(
-    AXI4UserYanker(Some(4))(
-    AXI4IdIndexer(4)(
-    TLToAXI4(4)(tlxbar.node))))
+   (ram.node 
+         := AXI4Buffer()
+         := AXI4UserYanker()
+         := AXI4IdIndexer(4)
+         := TLToAXI4()
+         := tlxbar.node)
 
    tlxbar.node := memory.masterDebug
    tlxbar.node := memory.masterInstr
    tlxbar.node := memory.masterData 
 
    val tlxbar2 = LazyModule(new TLXbar)
-   val error = LazyModule(new TLError(address = Seq(AddressSet(0x3000, 0xfff))))
-   val ps_slave = AXI4BlindInputNode(Seq(AXI4MasterPortParameters(
-    masters = Seq(AXI4MasterParameters(name = "AXI4 periphery")))))
+   val error = LazyModule(new TLError(params = ErrorParams(address = Seq(AddressSet(0x3000, 0xfff)),
+        maxAtomic = 1, maxTransfer = 4)))
+   val ps_slave = AXI4MasterNode(Seq(AXI4MasterPortParameters(
+    masters = Seq(AXI4MasterParameters(name = "AXI4 periphery",maxFlight = Some(2))))))
 
    error.node := tlxbar2.node
    tldmi.slaveDebug := tlxbar2.node
-   tlxbar2.node :=
-    TLFIFOFixer()(
-    TLBuffer()(
-    TLWidthWidget(4)(
-    AXI4ToTL()(
-    AXI4UserYanker(Some(2))(
-    AXI4Fragmenter()(
-    AXI4IdIndexer(3)(ps_slave)))))))
+   (tlxbar2.node 
+      := TLFIFOFixer()
+      := TLBuffer()
+      := TLWidthWidget(4)
+      := AXI4ToTL()
+      := AXI4UserYanker()
+      := AXI4Fragmenter()
+      := AXI4IdIndexer(3)
+      := ps_slave)
 }
  
 }

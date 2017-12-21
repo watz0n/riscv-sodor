@@ -6,7 +6,7 @@
 // 2011 May 28
 
 package RV32_3stage
-import config._
+import freechips.rocketchip.config._
 package constants
 {
 

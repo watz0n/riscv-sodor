@@ -20,7 +20,7 @@ import chisel3._
 import chisel3.util._
 import chisel3.iotesters.{ChiselFlatSpec, Driver, PeekPokeTester}
 import chisel3.experimental._
-import config._
+import freechips.rocketchip.config._
 
 import Constants._
 import Common._

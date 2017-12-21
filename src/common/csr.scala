@@ -11,7 +11,7 @@ import collection.mutable.LinkedHashMap
 import chisel3.util._
 import Util._
 import Instructions._
-import config._
+import freechips.rocketchip.config._
 
 
 import Common.Constants._

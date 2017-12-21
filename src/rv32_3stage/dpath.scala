@@ -17,7 +17,7 @@ package RV32_3stage
 
 import chisel3._
 import chisel3.util._
-import config._
+import freechips.rocketchip.config._
 import Constants._
 import Common._
 
