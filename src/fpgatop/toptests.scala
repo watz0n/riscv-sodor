@@ -82,19 +82,19 @@ class TopTests extends SteppedHWIOTester {
     step(1)
       memResetReadResp
     step(2)
-      memReadResp(0x1000000CL,0x0000af03L,1) // lw      t5, 0(ra)
-    step(1)
-      memResetReadResp
       memWriteResp(0x10002000L,0xaaL,2)
     step(1)
       memResetWriteResp
     step(1)
-      memReadResp(0x10000010L,0x0aae8e93L,1) // addi    t4, t4, 170
+      memReadResp(0x1000000CL,0x0000af03L,1) // lw      t5, 0(ra)
     step(1)
+      memResetReadResp
+    step(2)
       memReadResp(0x10002000L,0xaaL,2)
     step(1)
       memResetReadResp
-    step(6)
+    step(1)
+      memReadResp(0x10000010L,0x0aae8e93L,1) // addi    t4, t4, 170
   }
   def checkDebugMem = {
       reqW(0x400000E4,0x10002000L) // System Bus Address
@@ -192,13 +192,15 @@ class TopTests extends SteppedHWIOTester {
     step(1)
       memResetReadResp
     step(2)
-      memReadResp(0x10000008L,0x00600193L,1)  // li gp,6
-    step(1)
       memResetReadResp
       memWriteResp(0x40000004L,0x0L,2)
     step(1)
       memResetWriteResp
     step(1)
+      memReadResp(0x10000008L,0x00600193L,1)  // li gp,6
+    step(1)
+      memResetReadResp
+    step(2)
       memReadResp(0x1000000CL,0x00a00213L,1)  // li tp,10
     step(1)
       memResetReadResp
@@ -211,13 +213,11 @@ class TopTests extends SteppedHWIOTester {
     step(1)
       memResetReadResp
     step(2)
-      memReadResp(0x10000018L,0x00511663L,1)  // bne  sp,t0,10000024
-    step(1)
       memReadResp(0x40000008L,0x0L,2)
     step(1)
       memResetReadResp
     step(1)
-      memReadResp(0x1000001CL,0x0030a023L,1)  // sw gp,0(ra)
+      memReadResp(0x10000018L,0x00511663L,1)  // bne  sp,t0,10000024
     step(1)
       memResetReadResp
     step(2)
@@ -225,16 +225,11 @@ class TopTests extends SteppedHWIOTester {
     step(1)
       memResetReadResp
     step(2)
-      memReadResp(0x10000028L,0xfedff06fL,1)  // j  10000014
-    step(1)
-      memResetReadResp
       memWriteResp(0x40000000L,0xaL,2)
     step(1)
       memResetWriteResp
-      poke(device_under_test.io.mem_axi(0).ar.ready , 0)
-    step(8)
-      poke(device_under_test.io.mem_axi(0).ar.ready , 1)
-      memReadResp(0x1000002CL,0xc3bc6be6L,1)  // sw tp,0(ra)
+    step(1)
+      memReadResp(0x10000028L,0xfedff06fL,1)  // j  10000014
     step(1)
       memResetReadResp
       poke(device_under_test.io.mem_axi(0).ar.ready , 0)

@@ -65,12 +65,12 @@ class Top extends Module {
     case ExtMem => MasterConfig(base= 0x10000000L, size= 0x200000L, beatBytes= 4, idBits= 4)
     case NUM_MEMORY_PORTS => 2
   }
-  val tile = LazyModule(new SodorTile()(inParams)).module
+  val tile = LazyModule(new zynqsimtop.SodorTile()(inParams)).module
   val io = IO(new Bundle {
     val success = Output(Bool())
   })
   val axi4todmi = Module(new DMItoAXI4(this)(inParams))
-  tile.ps_slave.head <> axi4todmi.io.ps_axi_slave
+  tile.ps_slave <> axi4todmi.io.ps_axi_slave
   io.success := axi4todmi.io.success
   val dtm = Module(new SimDTM()(inParams)).connect(clock, reset.toBool, axi4todmi.io.dmi, io.success)
 }

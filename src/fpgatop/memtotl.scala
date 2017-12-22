@@ -35,12 +35,12 @@ class MemAccessToTLModule(outer: MemAccessToTL,num_core_ports: Int, num_bytes: I
    if (num_core_ports == 2){
       tl_instr.d.ready := true.B
       tl_instr.a.bits.address := (io.core_ports(IPORT).req.bits.addr & "h1FFFFF".U) | p(ExtMem).base.U
-      tl_instr.a.valid := io.core_ports(IPORT).req.valid //&& once
+      tl_instr.a.valid := io.core_ports(IPORT).req.valid 
       tl_instr.a.bits.data := io.core_ports(IPORT).req.bits.data
-      tl_instr.a.bits.opcode := 4.U
+      tl_instr.a.bits.opcode := TLMessages.Get
       tl_instr.a.bits.size := 2.U
       tl_instr.a.bits.mask := 15.U 
-      io.core_ports(IPORT).req.ready := tl_instr.a.ready // for now, no back pressure 
+      io.core_ports(IPORT).req.ready := tl_instr.a.ready
       io.core_ports(IPORT).resp.valid := tl_instr.d.valid
       io.core_ports(IPORT).resp.bits.data := tl_instr.d.bits.data
    }
@@ -48,9 +48,9 @@ class MemAccessToTLModule(outer: MemAccessToTL,num_core_ports: Int, num_bytes: I
 
    /////////// DPORT 
    tl_data.d.ready := io.core_ports(DPORT).resp.ready
-   tl_data.a.valid := io.core_ports(DPORT).req.valid
+   tl_data.a.valid := io.core_ports(DPORT).req.valid 
    io.core_ports(DPORT).resp.valid := tl_data.d.valid
-   io.core_ports(DPORT).req.ready := tl_data.a.ready // for now, no back pressure 
+   io.core_ports(DPORT).req.ready := tl_data.a.ready 
    tl_data.a.bits.address := Mux(io.core_ports(DPORT).req.bits.addr(31),(io.core_ports(DPORT).req.bits.addr & "h1FFFFF".U) | p(ExtMem).base.U,
       io.core_ports(DPORT).req.bits.addr)
 
@@ -71,10 +71,10 @@ class MemAccessToTLModule(outer: MemAccessToTL,num_core_ports: Int, num_bytes: I
    ))
 
    when(io.core_ports(DPORT).req.bits.fcn === M_XWR){
-      tl_data.a.bits.opcode := Mux((wire_typd === MT_W || wire_typd === MT_WU),0.U,1.U)
+      tl_data.a.bits.opcode := Mux((wire_typd === MT_W || wire_typd === MT_WU),TLMessages.PutFullData,TLMessages.PutPartialData)
    }
    when(io.core_ports(DPORT).req.bits.fcn === M_XRD){
-      tl_data.a.bits.opcode := 4.U
+      tl_data.a.bits.opcode := TLMessages.Get
    }
    tl_data.a.bits.mask := MuxCase(15.U,Array(
       (wire_typd === MT_B || wire_typd === MT_BU) -> (1.U << req_addr_lo), 
@@ -87,19 +87,19 @@ class MemAccessToTLModule(outer: MemAccessToTL,num_core_ports: Int, num_bytes: I
    /////////////////
    
    // DEBUG PORT-------
-   io.debug_port.req.ready := tl_debug.a.ready // for now, no back pressure
+   io.debug_port.req.ready := tl_debug.a.ready 
    io.debug_port.resp.valid := tl_debug.d.valid 
    // asynchronous read
-   tl_debug.a.bits.address := io.debug_port.req.bits.addr
+   tl_debug.a.bits.address := (io.debug_port.req.bits.addr & "h1FFFFF".U) | p(ExtMem).base.U
    tl_debug.a.valid := io.debug_port.req.valid
    tl_debug.d.ready := true.B
    tl_debug.a.bits.size := 2.U
    tl_debug.a.bits.mask := 15.U
    io.debug_port.resp.bits.data := tl_debug.d.bits.data
-   tl_debug.a.bits.opcode := Mux((io.debug_port.req.bits.fcn === M_XWR),1.U,4.U)
+   tl_debug.a.bits.opcode := Mux((io.debug_port.req.bits.fcn === M_XWR),TLMessages.PutPartialData,TLMessages.Get)
    when (io.debug_port.req.valid && io.debug_port.req.bits.fcn === M_XWR)
    {
-      tl_debug.a.bits.address := io.debug_port.req.bits.addr
+      tl_debug.a.bits.address := (io.debug_port.req.bits.addr & "h1FFFFF".U) | p(ExtMem).base.U
       tl_debug.a.bits.data := io.debug_port.req.bits.data 
    }
 }

@@ -61,11 +61,7 @@ class TLToDMI(implicit p: Parameters) extends LazyModule{
         supportsGet     = TransferSizes(1, 4),
         fifoId          = Some(0))), // requests handled in FIFO order
       beatBytes = 4,
-      minLatency = 1)))
-}
-
-class SodorTileBundle(outer: SodorTile)(implicit p: Parameters) extends Bundle {
-    val ps_slave = Flipped(HeterogeneousBag.fromNode(outer.ps_slave.out))
+      minLatency = 0)))
 }
 
 class SodorTileModule(outer: SodorTile)(implicit p: Parameters) extends LazyModuleImp(outer){
@@ -104,7 +100,7 @@ class SodorTile(implicit p: Parameters) extends LazyModule
    val ram = LazyModule(new AXI4RAM(AddressSet(config.base, config.size - 1)))
    (ram.node 
          := AXI4Buffer()
-         := AXI4UserYanker()
+         := AXI4UserYanker(Some(2))
          := AXI4IdIndexer(4)
          := TLToAXI4()
          := tlxbar.node)

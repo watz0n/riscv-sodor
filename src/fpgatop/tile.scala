@@ -53,7 +53,7 @@ class TLToDMI(implicit p: Parameters) extends LazyModule{
         supportsGet     = TransferSizes(1, 4),
         fifoId          = Some(0))), // requests handled in FIFO order
       beatBytes = 4,
-      minLatency = 1)))
+      minLatency = 0)))
 }
 
 class SodorTileModule(outer: SodorTile)(implicit p: Parameters) extends LazyModuleImp(outer){
@@ -98,14 +98,14 @@ class SodorTile(implicit p: Parameters) extends LazyModule
               supportsWrite = TransferSizes(1, 4), // The slave supports 1-256 byte transfers
               supportsRead  = TransferSizes(1, 4),
               interleavedId = Some(0))),             // slave does not interleave read responses
-            beatBytes = 4,minLatency =1)
+            beatBytes = 4,minLatency =0)
    ))
    
    val tlxbar = LazyModule(new TLXbar)
 
    (mem_axi4 
          := AXI4Buffer()
-         := AXI4UserYanker()
+         := AXI4UserYanker(Some(2))
          := AXI4IdIndexer(4)
          := TLToAXI4()
          := tlxbar.node)

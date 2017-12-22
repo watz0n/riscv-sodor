@@ -21,7 +21,7 @@ case object DebugAddrSlave extends Field[MasterConfig]
 class WithZynqAdapter extends Config((site, here, up) => {
   case ExtMem => MasterConfig(base= 0x10000000L, size= 0x10000000L, beatBytes= 4, idBits= 4)
   case MMIO => MasterConfig(base= 0x40000000L, size= 0x10000L, beatBytes= 4, idBits= 4)
-  case DebugAddrSlave => MasterConfig(base= 0x40000000L, size= 0x10000000L, beatBytes= 4, idBits= 4)
+  case DebugAddrSlave => MasterConfig(base= 0x40000000L, size= 0x100000L, beatBytes= 4, idBits= 4)
   case Common.xprlen => 32
   case Common.usingUser => false
   case NUM_MEMORY_PORTS => 2
@@ -44,7 +44,7 @@ object elaborate extends ChiselFlatSpec{
   def main(args: Array[String]): Unit = {
     implicit val inParams = new WithZynqAdapter
     if(!args.isEmpty && args(0) == "testtop")
-      assertTesterPasses(new TopTests,additionalVResources = Seq("/SyncMem.sv"))
+      assertTesterPasses(new TopTests,additionalVResources = Seq("/plusarg_reader.v"))
     else 
       chisel3.Driver.execute(args, () => new Top)
   }
