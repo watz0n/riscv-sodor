@@ -1,4 +1,5 @@
-include ../prefix.mk
+srcDir          := $(abspath ..)
+SBT := java -Xmx4096M -Xss8M -XX:MaxPermSize=128M -jar $(srcDir)/sbt/sbt-launch.jar $(SBT_FLAGS)
 
 
 hdl/Top.v: $(srcDir)/src/fpgatop/*.scala $(srcDir)/src/common/*.scala

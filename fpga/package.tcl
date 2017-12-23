@@ -2,7 +2,7 @@ set root "."
 set design sodor_temp
 set partname "xc7z020clg400-1"
 set projdir ./ip_repo/sodor_temp_1.0
-set hdl_files [glob $root/hdl/*]
+set hdl_files [glob $root/hdl/* $root/../vsrc/plusarg_reader.v]
 puts $hdl_files
 create_project -force $design $projdir -part $partname
 set_property target_language Verilog [current_project]
