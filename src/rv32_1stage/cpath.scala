@@ -12,7 +12,7 @@ import chisel3.util._
 import Common._
 import Common.Instructions._
 import Constants._
-import config._
+import freechips.rocketchip.config._
 
 class CtlToDatIo extends Bundle() 
 {

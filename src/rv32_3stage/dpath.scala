@@ -227,6 +227,7 @@ class DatPath(implicit p: Parameters) extends Module
    //**********************************
    // Writeback Stage
    wb_reg_valid := exe_valid && !wb_hazard_stall 
+   val wb_reg_pc = RegEnable(exe_pc,exe_valid && !wb_hazard_stall)
     
    // Control Status Registers
    val csr = Module(new CSRFile())
@@ -237,7 +238,7 @@ class DatPath(implicit p: Parameters) extends Module
 
    csr.io.retire    := wb_reg_valid
    csr.io.illegal := Reg(next = io.ctl.illegal)
-   csr.io.pc        := exe_pc - 4.U
+   csr.io.pc        := wb_reg_pc
    exception_target := csr.io.evec
    io.dat.csr_eret := csr.io.eret
 
@@ -252,7 +253,7 @@ class DatPath(implicit p: Parameters) extends Module
    wb_wbdata := MuxCase(wb_reg_alu, Array(
                   (wb_reg_ctrl.wb_sel === WB_ALU) -> wb_reg_alu,
                   (wb_reg_ctrl.wb_sel === WB_MEM) -> io.dmem.resp.bits.data, 
-                  (wb_reg_ctrl.wb_sel === WB_PC4) -> (Reg(next=exe_pc) + 4.U),
+                  (wb_reg_ctrl.wb_sel === WB_PC4) -> (wb_reg_pc + 4.U),
                   (wb_reg_ctrl.wb_sel === WB_CSR) -> wb_csr_out
                   ))
 

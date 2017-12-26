@@ -19,7 +19,7 @@ package Sodor
 
 import chisel3._
 import Common._
-import config._
+import freechips.rocketchip.config._
 
 class CoreIo(implicit p: Parameters) extends Bundle 
 {

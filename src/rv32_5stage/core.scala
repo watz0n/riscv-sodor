@@ -6,7 +6,7 @@ package Sodor
 {
 
 import chisel3._
-import config._
+import freechips.rocketchip.config._
 import Common._
 
 class CoreIo(implicit p: Parameters) extends Bundle 

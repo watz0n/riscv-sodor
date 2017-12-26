@@ -10,7 +10,7 @@ import chisel3._
 import chisel3.util._
 import Constants._
 import Common._   
-import config._
+import freechips.rocketchip.config._
 
 
 class SodorTile(implicit p: Parameters) extends Module
