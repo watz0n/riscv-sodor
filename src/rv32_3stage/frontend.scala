@@ -81,7 +81,7 @@ class FrontEnd(implicit p: Parameters) extends Module
    val io = IO(new FrontEndIO)
    io.imem.resp.ready := true.B
    io.imem.req.bits.data := 0.U
-
+   // io.cpu.req.valid -> to signal if instruction stream needs to be redirected like incase of jumps/exceptions
    //**********************************
    // Pipeline State Registers
    val if_reg_valid  = Reg(init = false.B)
@@ -97,70 +97,60 @@ class FrontEnd(implicit p: Parameters) extends Module
    val if_val_next = Wire(init = true.B) // for now, always true. But instruction
                                 // buffers, etc., could make that not the case.
    
-   val if_pc_plus4 = (if_reg_pc + 4.asUInt(p(xprlen).W))               
+   val if_pc_plus4 = (if_reg_pc + 4.asUInt(p(xprlen).W))    
+   // io.cpu.req.valid used if memory replies always in next cycle like memory/SyncScratchpad           
    val redirect = Reg(init = false.B)
    val redirectpc = Reg(UInt(32.W))
 
-   when ((io.cpu.req.valid && !io.imem.resp.valid) && !(io.imem.req.ready && io.imem.req.valid))
+   when (io.cpu.req.valid && !io.imem.resp.valid && !io.imem.req.fire())
    {
       redirect := true.B
       redirectpc := io.cpu.req.bits.pc
-   } .elsewhen (io.imem.req.ready && io.imem.req.valid) {
-      redirect := false.B
+   } .elsewhen (io.imem.req.fire()) {
+      redirect := false.B // Instruction Stream Redirect"ed"
    } 
-   // stall IF/EXE if backend not ready
    when (io.cpu.resp.ready)
    {
       if_pc_next := Mux(io.cpu.req.valid,io.cpu.req.bits.pc,
             Mux(redirect,redirectpc,if_pc_plus4))
-   }
-   .otherwise
-   {
+   } .otherwise {
       if_pc_next  := if_reg_pc
    }
 
    when (io.cpu.resp.ready)
    {
-      when(io.imem.req.ready && io.imem.req.valid){
+      when (io.imem.req.ready && io.imem.req.valid) {
          if_reg_pc    := if_pc_next
          if_reg_valid := true.B
-      } .elsewhen(io.imem.resp.valid) {
+      } .elsewhen (io.imem.resp.valid) {
          if_reg_valid := false.B
       }
    }
 
-   // set up outputs to the instruction memory
-
-   val once = Reg(init = true.B)
-   when(io.imem.req.ready && io.imem.req.valid){
-      once := false.B
-   } .elsewhen(io.imem.resp.valid) { 
-      once := true.B
-   }
-
    io.imem.req.bits.addr := if_pc_next
-   io.imem.req.valid     := !reset.toBool && (once || io.imem.resp.valid) && io.cpu.resp.ready
+   io.imem.req.valid     := !reset.toBool && io.cpu.resp.ready
    io.imem.req.bits.fcn  := M_XRD
    io.imem.req.bits.typ  := MT_WU
 
    //**********************************
-   // Inst Fetch/Return Stage
-   val instrreg = Reg(UInt(p(xprlen).W))
+   // Inst Fetch/Return Stage 
+   // Store instruction when CPU is accepting new instructions in pipeline 
+   val instrreg = Reg(UInt(p(xprlen).W)) 
    val respavail = Reg(init = false.B)
    when (io.cpu.resp.ready)
    {
-      when(!(io.cpu.req.valid || redirect)){
+      when (!(io.cpu.req.valid || redirect)) {
          exe_reg_pc    := if_reg_pc
       }
-      when(io.imem.resp.valid) {
-         exe_reg_valid := !(io.cpu.req.valid || redirect)   // true.B //if_reg_valid && 
+      when (io.imem.resp.valid) {
+         exe_reg_valid := !(io.cpu.req.valid || redirect)  
          exe_reg_inst  := io.imem.resp.bits.data
       } .otherwise {
          exe_reg_valid := respavail && !io.cpu.req.valid
          respavail := false.B
          exe_reg_inst := instrreg
       }
-   } .elsewhen(io.imem.resp.valid) {
+   } .elsewhen (io.imem.resp.valid) {
       instrreg := io.imem.resp.bits.data
       respavail := true.B
    }
