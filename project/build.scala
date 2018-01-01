@@ -38,11 +38,14 @@ object BuildSettings extends Build {
     ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_5stage")) dependsOn(common)
   lazy val rv32_ucode  = Project("rv32_ucode", file("rv32_ucode"), settings = buildSettings ++ chipSettings
     ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_ucode")) dependsOn(common)
-  lazy val fpgatop  = Project("fpgatop", file("fpgatop"), settings = buildSettings ++ chipSettings
-    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/fpgatop")
+  lazy val fpgazynq  = Project("fpgazynq", file("fpgazynq"), settings = buildSettings ++ chipSettings
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/fpgazynq")
     ++Seq(resourceDirectory in Compile := baseDirectory.value / "../vsrc")) dependsOn(common,rv32_3stage,rocketchip)
+  lazy val fpgaartix  = Project("fpgaartix", file("fpgaartix"), settings = buildSettings ++ chipSettings
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/fpgaartix")
+    ++Seq(resourceDirectory in Compile := baseDirectory.value / "../vsrc")) dependsOn(common,rv32_3stage,rocketchip,fpgazynq)
   lazy val zynqsimtop  = Project("zynqsimtop", file("zynqsimtop"), settings = buildSettings ++ chipSettings
-    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/zynqsimtop")) dependsOn(fpgatop)
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/zynqsimtop")) dependsOn(fpgazynq)
   lazy val macros  = Project("macros", file("macros"), settings = buildSettings ++ chipSettings
     ++Seq(scalaSource in Compile := baseDirectory.value / "../freechipsproject/macros"))
   lazy val hardfloat  = Project("hardfloat", file("hardfloat"), settings = buildSettings ++ chipSettings
