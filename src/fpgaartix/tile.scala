@@ -2,6 +2,7 @@ package artix
 {
 
 import chisel3._
+import chisel3.experimental._
 import Common._  
 import zynq._ 
 import util._
@@ -14,9 +15,9 @@ import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.config._
 
 class FIFOtoDMI()(implicit p: Parameters) extends Module {
-  val io = new Bundle{
-    val dmi = Flipped(new DMIIO())
-  }
+  val io = IO(new Bundle{
+//    val dmi = new DMIIO()
+  })
 }
 
 class SodorTileModule(outer: SodorTile)(implicit p: Parameters) extends LazyModuleImp(outer){
@@ -38,7 +39,7 @@ class SodorTileModule(outer: SodorTile)(implicit p: Parameters) extends LazyModu
   // DTM memory access
   debug.io.ddpath <> core.io.ddpath
   debug.io.dcpath <> core.io.dcpath 
-  debug.io.dmi <> fifotodmi.io.dmi
+//  debug.io.dmi <> fifotodmi.io.dmi
 }
 
 class SodorTile(implicit p: Parameters) extends LazyModule
@@ -53,11 +54,11 @@ class SodorTile(implicit p: Parameters) extends LazyModule
       slaves = Seq(AXI4SlaveParameters(
               address       = Seq(AddressSet(config.base, config.size-1),AddressSet(mmio.base, mmio.size-1)),
               resources     = device.reg,
-              regionType    = RegionType.UNCACHED,   // cacheable
+              regionType    = RegionType.UNCACHED, 
               executable    = false,
-              supportsWrite = TransferSizes(1, 4), // The slave supports 1-256 byte transfers
+              supportsWrite = TransferSizes(1, 4), 
               supportsRead  = TransferSizes(1, 4),
-              interleavedId = Some(0))),             // slave does not interleave read responses
+              interleavedId = Some(0))), 
             beatBytes = 4,minLatency =0)
   ))
    

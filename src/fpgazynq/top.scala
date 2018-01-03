@@ -15,7 +15,6 @@ object ReferenceChipBackend {
 }
 
 case class MasterConfig(base: Long, size: Long, beatBytes: Int, idBits: Int)
-case object ExtMem extends Field[MasterConfig]
 case object MMIO extends Field[MasterConfig]
 case object DebugAddrSlave extends Field[MasterConfig]
 class WithZynqAdapter extends Config((site, here, up) => {

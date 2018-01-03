@@ -10,7 +10,7 @@ import freechips.rocketchip.util._
 import Common._
 import Common.Util._
 
-
+case object ExtMem extends Field[MasterConfig]
 class MemAccessToTL(num_core_ports: Int, num_bytes: Int = (1 << 21))(implicit p: Parameters) extends LazyModule {
    val masterInstr = TLClientNode(Seq(TLClientPortParameters(clients = Seq(TLClientParameters(name = s"Core Instr")))))
    val masterData = TLClientNode(Seq(TLClientPortParameters(clients = Seq(TLClientParameters(name = s"Core Data")))))
@@ -89,7 +89,6 @@ class MemAccessToTLModule(outer: MemAccessToTL,num_core_ports: Int, num_bytes: I
    // DEBUG PORT-------
    io.debug_port.req.ready := tl_debug.a.ready 
    io.debug_port.resp.valid := tl_debug.d.valid 
-   // asynchronous read
    tl_debug.a.bits.address := (io.debug_port.req.bits.addr & "h1FFFFF".U) | p(ExtMem).base.U
    tl_debug.a.valid := io.debug_port.req.valid
    tl_debug.d.ready := true.B

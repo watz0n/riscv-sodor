@@ -2,6 +2,7 @@ package artix
 
 import chisel3._
 import chisel3.iotesters._
+import zynq._
 import RV32_3stage.Constants._
 import scala.collection.mutable.HashMap
 import freechips.rocketchip.config._
@@ -14,9 +15,6 @@ object ReferenceChipBackend {
   val initMap = new HashMap[Module, Bool]()
 }
 
-case class MasterConfig(base: Long, size: Long, beatBytes: Int, idBits: Int)
-case object ExtMem extends Field[MasterConfig]
-case object MMIO extends Field[MasterConfig]
 class WithArtixAdapter extends Config((site, here, up) => {
   case ExtMem => MasterConfig(base= 0x10000000L, size= 0x10000000L, beatBytes= 4, idBits= 4)
   case MMIO => MasterConfig(base= 0x40000000L, size= 0x10000L, beatBytes= 4, idBits= 4)
