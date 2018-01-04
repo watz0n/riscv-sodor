@@ -34,12 +34,15 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
   val op = RegInit(0.U(2.W))
   val data = RegInit(0.U(32.W))
 
+  /**           
+    * Rx Header |W/R| Addr(7bits) |
+    * Tx Header |    DMI Resp     | 
+    */
 
   val ( s_idle :: s_rhdr   :: s_rdata3 :: s_rdata2 :: s_rdata1 :: s_rdata0 :: 
         s_thdr :: s_tdata3 :: s_tdata2 :: s_tdata1 :: s_tdata0 :: s_tterm :: Nil) = Enum(UInt(),12)
 
   val fsm_state = RegInit(s_idle) 
-
   switch (fsm_state) {
     is (s_idle) {
       when (io.fifo_in.valid) {
@@ -48,11 +51,12 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
     }
     is (s_rhdr) {
       addr := io.fifo_in.bits.data(6,0)
-      op := DMConsts.dmi_OP_WRITE
       when (io.fifo_in.bits.data(7)) {
+        op := DMConsts.dmi_OP_WRITE
         fsm_state := s_rdata3
         io.fifo_in.ready := true.B
       } .otherwise {
+        op := DMConsts.dmi_OP_READ
         fsm_state := Mux( io.dmi.req.ready, s_thdr, s_rhdr)
         io.dmi.req.bits.op := DMConsts.dmi_OP_READ | op
         io.dmi.req.bits.addr := addr | io.fifo_in.bits.data(6,0)
@@ -71,14 +75,14 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       io.fifo_in.ready := true.B
       data := data | (io.fifo_in.bits.data << 16.U) 
       when (io.fifo_in.fire()) {
-        fsm_state := s_rdata2
+        fsm_state := s_rdata1
       }
     }
     is (s_rdata1) {
       io.fifo_in.ready := true.B
       data := data | (io.fifo_in.bits.data << 8.U) 
       when (io.fifo_in.fire()) {
-        fsm_state := s_rdata1
+        fsm_state := s_rdata0
       }
     }
     is (s_rdata0) {
