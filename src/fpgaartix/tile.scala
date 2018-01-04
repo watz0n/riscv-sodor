@@ -14,14 +14,28 @@ import freechips.rocketchip.util._
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.config._
 
+class Data() extends Bundle {
+  val data = Output(UInt(8.W))
+}
+
 class FIFOtoDMI()(implicit p: Parameters) extends Module {
   val io = IO(new Bundle{
-//    val dmi = new DMIIO()
+    val dmi = new DMIIO()
+    val fifo_out = DecoupledIO(new Data())
+    val fifo_in = Flipped(DecoupledIO(new Data()))
   })
+  io.dmi.req.bits := new DMIReq(8).fromBits(0.U)
+  io.dmi.resp.ready := 0.U
+  io.dmi.req.valid := 0.U
+  io.fifo_out.bits.data := 0.U
+  io.fifo_out.valid := 0.U
+  io.fifo_in.ready := 0.U
 }
 
 class SodorTileModule(outer: SodorTile)(implicit p: Parameters) extends LazyModuleImp(outer){
   val mem_axi4 = IO(HeterogeneousBag.fromNode(outer.mem_axi4.in))
+  val fifo_out = IO(DecoupledIO(new Data())) // WIDTH
+  val fifo_in = IO(Flipped(DecoupledIO(new Data()))) // WIDTH
 
   val core   = Module(new Core())
   val fifotodmi   = Module(new FIFOtoDMI())
@@ -39,7 +53,9 @@ class SodorTileModule(outer: SodorTile)(implicit p: Parameters) extends LazyModu
   // DTM memory access
   debug.io.ddpath <> core.io.ddpath
   debug.io.dcpath <> core.io.dcpath 
-//  debug.io.dmi <> fifotodmi.io.dmi
+  debug.io.dmi <> fifotodmi.io.dmi
+  fifo_out <> fifotodmi.io.fifo_out
+  fifotodmi.io.fifo_in <> fifo_in
 }
 
 class SodorTile(implicit p: Parameters) extends LazyModule
