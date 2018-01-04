@@ -2,7 +2,6 @@ package artix
 {
 
 import chisel3._
-import chisel3.experimental._
 import Common._  
 import zynq._ 
 import util._
@@ -24,12 +23,132 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
     val fifo_out = DecoupledIO(new Data())
     val fifo_in = Flipped(DecoupledIO(new Data()))
   })
-  io.dmi.req.bits := new DMIReq(8).fromBits(0.U)
+  io.dmi.req.bits := new DMIReq(DMConsts.nDMIAddrSize).fromBits(0.U)
   io.dmi.resp.ready := 0.U
   io.dmi.req.valid := 0.U
   io.fifo_out.bits.data := 0.U
   io.fifo_out.valid := 0.U
   io.fifo_in.ready := 0.U
+
+  val addr = RegInit(0.U(7.W))
+  val op = RegInit(0.U(2.W))
+  val data = RegInit(0.U(32.W))
+
+
+  val ( s_idle :: s_rhdr   :: s_rdata3 :: s_rdata2 :: s_rdata1 :: s_rdata0 :: 
+        s_thdr :: s_tdata3 :: s_tdata2 :: s_tdata1 :: s_tdata0 :: s_tterm :: Nil) = Enum(UInt(),12)
+
+  val fsm_state = RegInit(s_idle) 
+
+  switch (fsm_state) {
+    is (s_idle) {
+      when (io.fifo_in.valid) {
+        fsm_state := s_rhdr
+      }
+    }
+    is (s_rhdr) {
+      addr := io.fifo_in.bits.data(6,0)
+      op := DMConsts.dmi_OP_WRITE
+      when (io.fifo_in.bits.data(7)) {
+        fsm_state := s_rdata3
+        io.fifo_in.ready := true.B
+      } .otherwise {
+        fsm_state := Mux( io.dmi.req.ready, s_thdr, s_rhdr)
+        io.dmi.req.bits.op := DMConsts.dmi_OP_READ | op
+        io.dmi.req.bits.addr := addr | io.fifo_in.bits.data(6,0)
+        io.dmi.req.valid := true.B
+        io.fifo_in.ready := io.dmi.req.ready
+      }
+    }
+    is (s_rdata3) {
+      io.fifo_in.ready := true.B
+      data := data | (io.fifo_in.bits.data << 24.U) 
+      when (io.fifo_in.fire()) {
+        fsm_state := s_rdata2
+      }
+    }
+    is (s_rdata2) {
+      io.fifo_in.ready := true.B
+      data := data | (io.fifo_in.bits.data << 16.U) 
+      when (io.fifo_in.fire()) {
+        fsm_state := s_rdata2
+      }
+    }
+    is (s_rdata1) {
+      io.fifo_in.ready := true.B
+      data := data | (io.fifo_in.bits.data << 8.U) 
+      when (io.fifo_in.fire()) {
+        fsm_state := s_rdata1
+      }
+    }
+    is (s_rdata0) {
+      data := data | io.fifo_in.bits.data 
+      io.dmi.req.bits.op := op
+      io.dmi.req.bits.addr := addr
+      io.dmi.req.bits.data := data | io.fifo_in.bits.data
+      io.fifo_in.ready := io.fifo_in.valid
+      io.dmi.req.valid := io.fifo_in.valid
+      when (io.fifo_in.fire() && io.dmi.req.fire()) {
+        fsm_state := s_thdr
+      }
+    }
+    is (s_thdr) {
+      io.fifo_out.bits.data := DMConsts.dmi_RESP_SUCCESS
+      when ((op === DMConsts.dmi_OP_READ) && io.dmi.resp.valid) {
+        io.fifo_out.valid := true.B
+        when (io.fifo_out.fire()) {
+          fsm_state := s_tdata3
+        }
+      } .elsewhen ((op === DMConsts.dmi_OP_WRITE) && io.dmi.resp.valid) {
+        io.fifo_out.valid := true.B 
+        when (io.fifo_out.fire()) {
+          fsm_state := s_tterm
+        }
+      } .otherwise {
+        fsm_state := s_thdr
+      }
+    }
+    is (s_tdata3) {
+      io.fifo_out.bits.data := io.dmi.resp.bits.data >> 24.U
+      io.fifo_out.valid := true.B
+      when (io.fifo_out.fire() && io.dmi.resp.valid) {
+        fsm_state := s_tdata2
+      }
+    }
+    is (s_tdata2) {
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(23,16)
+      io.fifo_out.valid := true.B
+      when (io.fifo_out.fire() && io.dmi.resp.valid) {
+        fsm_state := s_tdata1
+      }
+    }
+    is (s_tdata1) {
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(15,8)
+      io.fifo_out.valid := true.B
+      when (io.fifo_out.fire() && io.dmi.resp.valid) {
+        fsm_state := s_tdata0
+      }
+    }
+    is (s_tdata0) {
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(7,0)
+      io.fifo_out.valid := true.B
+      io.dmi.resp.ready := io.fifo_out.ready
+      when (io.fifo_out.fire()) {
+        fsm_state := s_tterm
+      }
+    }
+    is (s_tterm) {
+      op := 0.U
+      addr := 0.U
+      data := 0.U
+      io.fifo_out.valid := true.B
+      io.fifo_out.bits.data := "h0a".U // "\n"
+      when (io.fifo_out.fire()) {
+        fsm_state := s_idle
+      }
+      io.dmi.resp.ready := true.B
+    }
+  }
 }
 
 class SodorTileModule(outer: SodorTile)(implicit p: Parameters) extends LazyModuleImp(outer){

@@ -70,6 +70,9 @@ class Top extends Module {
 object elaborate extends ChiselFlatSpec{
   def main(args: Array[String]): Unit = {
     implicit val inParams = new WithArtixAdapter
-    chisel3.Driver.execute(args, () => new Top)
+    if(!args.isEmpty && args(0) == "testfifo")
+      assertTesterPasses(new TopFIFO()(inParams),additionalVResources = Seq("/plusarg_reader.v"))
+    else 
+      chisel3.Driver.execute(args, () => new Top)
   }
 }
