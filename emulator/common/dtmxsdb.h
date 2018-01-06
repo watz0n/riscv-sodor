@@ -56,7 +56,7 @@ class dtmxsdb_t : public htif_t
 
  private:
   unsigned int sock;
-  char message[100] , server_reply[50];
+  char message[100] , response[50];
   context_t host;
   context_t* target;
   pthread_t producer;

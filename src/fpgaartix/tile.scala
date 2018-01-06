@@ -64,55 +64,54 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       } .otherwise {
         op := DMConsts.dmi_OP_READ
         fsm_state := Mux( io.dmi.req.ready, s_thdr, s_rhdr)
-        io.dmi.req.bits.op := DMConsts.dmi_OP_READ | op
-        io.dmi.req.bits.addr := addr | io.fifo_in.bits.data(6,0)
+        io.dmi.req.bits.op := DMConsts.dmi_OP_READ
+        io.dmi.req.bits.addr := io.fifo_in.bits.data(6,0)
         io.dmi.req.valid := true.B
         io.fifo_in.ready := io.dmi.req.ready
-        data := io.dmi.resp.bits.data // TO BE REMOVED
       }
     }
     is (s_rdata3) {
       io.fifo_in.ready := true.B
-      data := data | (io.fifo_in.bits.data << 24.U) 
       when (io.fifo_in.fire()) {
+        data := io.fifo_in.bits.data << 24.U 
         fsm_state := s_rdata2
       }
     }
     is (s_rdata2) {
       io.fifo_in.ready := true.B
-      data := data | (io.fifo_in.bits.data << 16.U) 
       when (io.fifo_in.fire()) {
+        data := data | (io.fifo_in.bits.data << 16.U) 
         fsm_state := s_rdata1
       }
     }
     is (s_rdata1) {
       io.fifo_in.ready := true.B
-      data := data | (io.fifo_in.bits.data << 8.U) 
       when (io.fifo_in.fire()) {
+        data := data | (io.fifo_in.bits.data << 8.U) 
         fsm_state := s_rdata0
       }
     }
     is (s_rdata0) {
       io.dmi.resp.ready := false.B
-      data := data | io.fifo_in.bits.data 
       io.dmi.req.bits.op := op
       io.dmi.req.bits.addr := addr
       io.dmi.req.bits.data := data | io.fifo_in.bits.data
-      io.fifo_in.ready := io.fifo_in.valid
+      io.fifo_in.ready := io.dmi.req.ready
       io.dmi.req.valid := io.fifo_in.valid
-      when (io.fifo_in.fire() && io.dmi.req.fire()) {
-        fsm_state := s_thdr
+      when (io.fifo_in.fire() && io.dmi.req.fire()) { 
+        fsm_state := s_thdr 
       }
     }
     is (s_thdr) {
-      io.dmi.resp.ready := false.B
       io.fifo_out.bits.data := DMConsts.dmi_RESP_SUCCESS
       when ((op === DMConsts.dmi_OP_READ) && io.dmi.resp.valid) {
+        io.dmi.resp.ready := false.B
         io.fifo_out.valid := true.B
         when (io.fifo_out.fire()) {
           fsm_state := s_tdata3
         }
       } .elsewhen ((op === DMConsts.dmi_OP_WRITE) && io.dmi.resp.valid) {
+        io.dmi.resp.ready := true.B
         io.fifo_out.valid := true.B 
         when (io.fifo_out.fire()) {
           fsm_state := s_tterm
@@ -122,31 +121,39 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       }
     }
     is (s_tdata3) {
+      io.dmi.req.bits.op := op // TO BE REMOVED
+      io.dmi.req.bits.addr := addr // TO BE REMOVED
       io.dmi.resp.ready := false.B
-      io.fifo_out.bits.data := io.dmi.resp.bits.data(31,24) | data(31,24) // TO BE REMOVED
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(31,24) 
       io.fifo_out.valid := true.B
       when (io.fifo_out.fire() && io.dmi.resp.valid) {
         fsm_state := s_tdata2
       }
     }
     is (s_tdata2) {
+      io.dmi.req.bits.op := op // TO BE REMOVED
+      io.dmi.req.bits.addr := addr // TO BE REMOVED
       io.dmi.resp.ready := false.B
-      io.fifo_out.bits.data := io.dmi.resp.bits.data(23,16) | data(23,16) // TO BE REMOVED
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(23,16) 
       io.fifo_out.valid := true.B
       when (io.fifo_out.fire() && io.dmi.resp.valid) {
         fsm_state := s_tdata1
       }
     }
     is (s_tdata1) {
+      io.dmi.req.bits.op := op // TO BE REMOVED
+      io.dmi.req.bits.addr := addr // TO BE REMOVED
       io.dmi.resp.ready := false.B
-      io.fifo_out.bits.data := io.dmi.resp.bits.data(15,8) | data(15,8) // TO BE REMOVED
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(15,8) 
       io.fifo_out.valid := true.B
       when (io.fifo_out.fire() && io.dmi.resp.valid) {
         fsm_state := s_tdata0
       }
     }
     is (s_tdata0) {
-      io.fifo_out.bits.data := io.dmi.resp.bits.data(7,0) | data(7,0) // TO BE REMOVED
+      io.dmi.req.bits.op := op // TO BE REMOVED
+      io.dmi.req.bits.addr := addr // TO BE REMOVED
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(7,0) 
       io.fifo_out.valid := true.B
       io.dmi.resp.ready := io.fifo_out.ready
       when (io.fifo_out.fire()) {

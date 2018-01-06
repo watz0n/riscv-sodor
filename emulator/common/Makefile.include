@@ -85,6 +85,9 @@ $(addsuffix .o,$(CXXSRCS)): %.o: $(srcDir)/emulator/common/%.cc
 dtmxsdb: $(srcDir)/emulator/common/dtmxsdb.cc
 	$(CXX) $(CXXFLAGS) -I$(srcDir)/riscv-fesvr/fesvr -o $@ $< $(srcDir)/riscv-fesvr/build/libfesvr.so
 
+dtmglip: $(srcDir)/emulator/common/dtmglip.cc
+	$(CXX) $(CXXFLAGS) -I$(srcDir)/riscv-fesvr/fesvr -o $@ $< $(srcDir)/riscv-fesvr/build/libfesvr.so
+
 generated_dir = $(srcDir)/emulator/${MK_TARGET_PROC}
 
 

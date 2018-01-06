@@ -6,8 +6,10 @@
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h> 
+#include <termios.h>
+#include <unistd.h>
 
 #define RV_X(x, s, n) \
   (((x) >> (s)) & ((1 << (n)) - 1))
@@ -57,38 +59,65 @@
   }
 
 bool log = false;
-unsigned int port;
+char *port;
 
 uint32_t dtmxsdb_t::do_command(dtmxsdb_t::req r)
 {
-  unsigned int a,b,addr;
-  addr = 0x40000000 | (r.addr << 2);
-  if(r.op == 2)
-    sprintf(message,"mwr -force 0x%x 0x%x\n",addr,r.data);
-  else
-    sprintf(message,"mrd -force 0x%x\n",addr);
-  if(log)
-    printf("%s",message);
-  if( send(sock , message , strlen(message) , 0) < 0)
-  {
-    puts("Send failed");
-    exit(1);
-  }
-  while(1)
-  {
-    if( recv(sock , response , 50 , 0) < 0)
+  // if data/header contains 0xfe then repeat it 
+  // to avoid being interpreted as byte for flow control
+  unsigned int n,data,i = 0;
+  if (r.op == 2) {
+    message[i] = 128 + r.addr;
+    if (message[i] == 254)
+      message[++i] = 254;
+    message[i + 1] = (r.data & 0xff000000) >> 24;
+    if (message[i + 1] == 254)
+      message[++i] = 254;
+    message[i + 2] = (r.data & 0x00ff0000) >> 16;
+    if (message[i + 2] == 254)
+      message[++i] = 254;
+    message[i + 3] = (r.data & 0x0000ff00) >> 8;
+    if (message[i + 3] == 254)
+      message[++i] = 254;
+    message[i + 4] = r.data & 0x000000ff;
+    if (message[i + 4] == 254)
+      message[++i] = 254;
+    if( ::write(sock , message , i+5) < 0)
     {
-      puts("recv failed");
+      puts("Send failed");
       exit(1);
     }
-    else if (strstr(response,"okay"))
+  }
+  else {
+    message[0] = r.addr;
+    if( ::write(sock , message , 1) < 0)
     {
-      sscanf(response,"okay %x:   %x\n",&a,&b);
-      if(log)
-        printf("0x%x\n",b);
-      return b;
+      puts("Send failed");
+      exit(1);
     }
   }
+  if(log)
+    printf("O:%x A:%hhx D:%hhx%hhx%hhx%hhx\n",r.op,message[0] & 0x7f,message[1],message[2],message[3],message[4]);
+  
+  // Process Response
+  i = 1;
+  n = ::read(sock , response , 10);
+
+  if (n == 2)
+    return 0;
+  else {
+    data |= (response[i] << 24);
+    if (response[i] == 254)  i++;
+    data |= (response[i + 1] << 16);
+    if (response[i] == 254)  i++;
+    data |= (response[i + 2] << 8);
+    if (response[i] == 254)  i++;
+    data |= response[i + 3];
+    if (log)
+      printf("Resp: %hhx\n", data);
+    return data;
+  }
+
 }
 
 uint32_t dtmxsdb_t::read(uint32_t addr)
@@ -578,28 +607,75 @@ void dtmxsdb_t::producer_thread()
   }
 }
 
+int set_interface_attribs (int fd, int speed, int parity)
+{
+    struct termios tty;
+    memset (&tty, 0, sizeof tty);
+    if (tcgetattr (fd, &tty) != 0)
+    {
+            fprintf(stderr,"error %d from tcgetattr\n", errno);
+            return -1;
+    }
+
+        cfsetospeed (&tty, speed);
+        cfsetispeed (&tty, speed);
+
+        tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;     // 8-bit chars
+        // disable IGNBRK for mismatched speed tests; otherwise receive break
+        // as \000 chars
+        tty.c_iflag &= ~IGNBRK;         // disable break processing
+        tty.c_lflag = 0;                // no signaling chars, no echo,
+                                        // no canonical processing
+        tty.c_oflag = 0;                // no remapping, no delays
+        tty.c_cc[VMIN]  = 0;            // read doesn't block
+        tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
+
+        tty.c_iflag &= ~(IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
+
+        tty.c_cflag |= (CLOCAL | CREAD);// ignore modem controls,
+                                        // enable reading
+        tty.c_cflag &= ~(PARENB | PARODD);      // shut off parity
+        tty.c_cflag |= parity;
+        tty.c_cflag &= ~CSTOPB;
+        tty.c_cflag &= ~CRTSCTS;
+
+        if (tcsetattr (fd, TCSANOW, &tty) != 0)
+        {
+                fprintf(stderr,"error %d from tcsetattr\n", errno);
+                return -1;
+        }
+        return 0;
+}
+
+void set_blocking (int fd, int should_block)
+{
+    struct termios tty;
+    memset (&tty, 0, sizeof tty);
+    if (tcgetattr (fd, &tty) != 0)
+    {
+            fprintf(stderr,"error %d from tggetattr\n", errno);
+            exit(1);
+    }
+
+    tty.c_cc[VMIN]  = should_block ? 1 : 0;
+    tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
+
+    if (tcsetattr (fd, TCSANOW, &tty) != 0)
+        fprintf(stderr,"error %d setting term attributes\n", errno);
+}
+
 void dtmxsdb_t::start_host_thread()
 {
 
-  struct sockaddr_in server;
-   
-  //Create socket
-  sock = socket(AF_INET , SOCK_STREAM , 0);
-  if (sock == -1)
+  sock = open (port, O_RDWR | O_NOCTTY | O_SYNC);
+  if (sock < 0)
   {
-      printf("Could not create socket");
-      exit(1);
+    fprintf(stderr,"error %d opening %s: %s\n", errno, port, strerror (errno));
+    exit(1);
   }
-  server.sin_addr.s_addr = inet_addr("127.0.0.1");
-  server.sin_family = AF_INET;
-  server.sin_port = htons( port);
 
-  //Connect to remote server
-  if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
-  {
-      perror("connect failed. Error");
-      exit(1);
-  }
+  set_interface_attribs (sock, B115200, 0);  // set speed to 115,200 bps, 8n1 (no parity)
+  set_blocking (sock, 1);                // set no blocking
   //target = context_t::current();
   host.init(host_thread_main, this);
   host.switch_to();
@@ -649,7 +725,7 @@ int main(int argc, char** argv)
   {
     std::string arg = argv[i];
     if (arg.substr(0, 2) == "+p")
-      port = atoi(argv[i]+2);
+      port = argv[i]+2;
     else if (arg == "+verbose")
       log = true;
     else if (arg.substr(0, 12) == "+max-cycles=")
