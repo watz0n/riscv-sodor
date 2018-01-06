@@ -89,9 +89,9 @@ class MemAccessToTLModule(outer: MemAccessToTL,num_core_ports: Int, num_bytes: I
    // DEBUG PORT-------
    io.debug_port.req.ready := tl_debug.a.ready 
    io.debug_port.resp.valid := tl_debug.d.valid 
-   tl_debug.a.bits.address := (io.debug_port.req.bits.addr & "h1FFFFF".U) | p(ExtMem).base.U
    tl_debug.a.valid := io.debug_port.req.valid
-   tl_debug.d.ready := true.B
+   tl_debug.d.ready := io.debug_port.resp.ready
+   tl_debug.a.bits.address := (io.debug_port.req.bits.addr & "h1FFFFF".U) | p(ExtMem).base.U
    tl_debug.a.bits.size := 2.U
    tl_debug.a.bits.mask := 15.U
    io.debug_port.resp.bits.data := tl_debug.d.bits.data

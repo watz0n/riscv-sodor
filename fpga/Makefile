@@ -2,15 +2,28 @@ srcDir          := $(abspath ..)
 SBT := java -Xmx4096M -Xss8M -XX:MaxPermSize=128M -jar $(srcDir)/sbt/sbt-launch.jar $(SBT_FLAGS)
 
 
-hdl/Top.v: $(srcDir)/src/fpgatop/*.scala $(srcDir)/src/common/*.scala
-	cd $(srcDir) && $(SBT) "project fpgatop" "run -td fpga/hdl"
-	echo "\`ifndef SYNTHESIS\n\`define SYNTHESIS\n\`endif\n" > hdl/temp
-	cat hdl/Top.v >> hdl/temp
-	mv hdl/temp hdl/Top.v
-	rm hdl/Top.anno hdl/Top.fir
+pynq_hdl/Top.v: $(srcDir)/src/fpgazynq/*.scala 
+	cd $(srcDir) && $(SBT) "project fpgazynq" "run -td fpga/pynq_hdl"
+	echo "\`ifndef SYNTHESIS\n\`define SYNTHESIS\n\`endif\n" > pynq_hdl/temp
+	cat pynq_hdl/Top.v >> pynq_hdl/temp
+	mv pynq_hdl/temp pynq_hdl/Top.v
+	rm pynq_hdl/Top.anno pynq_hdl/Top.fir
 
-ip_repo: hdl/Top.v
-	vivado -mode batch -source package.tcl
+pynq_ip_repo: pynq_hdl/Top.v
+	vivado -mode batch -source pynq_package.tcl
 
-bitstream: ip_repo
-	vivado -mode batch -source bitstream.tcl
+pynq_bitstream: pynq_ip_repo
+	vivado -mode batch -source pynq_bitstream.tcl
+
+arty_hdl/Top.v: $(srcDir)/src/fpgaartix/*.scala 
+	cd $(srcDir) && $(SBT) "project fpgaartix" "run -td fpga/arty_hdl"
+	echo "\`ifndef SYNTHESIS\n\`define SYNTHESIS\n\`endif\n" > arty_hdl/temp
+	cat arty_hdl/Top.v >> arty_hdl/temp
+	mv arty_hdl/temp arty_hdl/Top.v
+	rm arty_hdl/Top.anno arty_hdl/Top.fir
+
+arty_ip_repo: arty_hdl/Top.v
+	vivado -mode batch -source arty_package.tcl
+
+arty_bitstream: arty_ip_repo
+	vivado -mode batch -source arty_bitstream.tcl

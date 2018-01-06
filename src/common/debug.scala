@@ -163,11 +163,11 @@ class DebugModule(implicit p: Parameters) extends Module {
   val dwreqval = Reg(init = false.B)
   val memongoing = Reg(init = false.B)
   val firstreaddone = Reg(init = false.B)
-  io.debugmem.resp.ready := true.B 
-  when(io.debugmem.req.valid && io.debugmem.req.ready){
+  io.debugmem.resp.ready := io.dmi.resp.ready 
+  when(io.debugmem.req.fire()){
     memongoing := true.B
   }
-  when(io.debugmem.resp.valid){
+  when(io.debugmem.resp.fire()){
     memongoing := false.B
   }
   val earlyrespond = Wire(UInt(xlen.W))
@@ -258,18 +258,25 @@ class DebugModule(implicit p: Parameters) extends Module {
   }
 
   val temp = Wire(init = false.B) // Async Mem Read
+  val waitready = Reg(init = false.B)
+
+  when (io.dmi.req.fire()) {
+    waitready := true.B
+  } .elsewhen (io.dmi.resp.fire()) {
+    waitready := false.B
+  }
 
   io.dmi.req.ready := MuxCase(false.B, Array(
     memongoing -> io.debugmem.resp.valid,
-    (io.debugmem.req.valid && io.debugmem.req.ready && (io.dmi.req.bits.op === DMConsts.dmi_OP_WRITE) && io.dmi.req.valid) -> io.debugmem.resp.valid, // Async Mem Write
+    (io.debugmem.req.fire() && (io.dmi.req.bits.op === DMConsts.dmi_OP_WRITE) && io.dmi.req.valid) -> io.debugmem.resp.valid, // Async Mem Write
     firstreaddone -> (Reg(next = io.debugmem.resp.valid) || temp),
     !decoded_addr(DMI_RegAddrs.DMI_SBDATA0) -> io.dmi.req.valid
   ))  
   io.dmi.resp.valid := MuxCase(false.B, Array(
     firstreaddone -> (Reg(next = io.debugmem.resp.valid) || temp),
     memongoing -> io.debugmem.resp.valid,
-    (io.debugmem.req.valid && io.debugmem.req.ready && (io.dmi.req.bits.op === DMConsts.dmi_OP_WRITE) && io.dmi.req.valid) -> io.debugmem.resp.valid, // Async Mem Write
-    !decoded_addr(DMI_RegAddrs.DMI_SBDATA0) -> io.dmi.req.valid
+    (io.debugmem.req.fire() && (io.dmi.req.bits.op === DMConsts.dmi_OP_WRITE) && io.dmi.req.valid) -> io.debugmem.resp.valid, // Async Mem Write
+    !decoded_addr(DMI_RegAddrs.DMI_SBDATA0) -> (io.dmi.req.valid || waitready) 
   ))
 
   io.dmi.resp.bits.data := Mux(firstreaddone, sbdata , earlyrespond)

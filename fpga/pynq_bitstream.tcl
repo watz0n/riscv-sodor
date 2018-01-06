@@ -105,7 +105,7 @@ if { $nRet != 0 } {
 }
 
 
-set ip_repos [list "./ip_repo"]
+set ip_repos [list "./pynq_ip_repo"]
 set other_repos [get_property ip_repo_paths [current_project]]
 set_property  ip_repo_paths  "$ip_repos $other_repos" [current_project]
 

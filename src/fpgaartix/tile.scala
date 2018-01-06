@@ -34,6 +34,11 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
   val op = RegInit(0.U(2.W))
   val data = RegInit(0.U(32.W))
 
+  /** TO BE REMOVED portions are a workaround 
+    * for now since the DMI is not correctly 
+    * implemented in Debug Module debug.scala 
+    */
+
   /**           
     * Rx Header |W/R| Addr(7bits) |
     * Tx Header |    DMI Resp     | 
@@ -51,6 +56,7 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
     }
     is (s_rhdr) {
       addr := io.fifo_in.bits.data(6,0)
+      io.dmi.resp.ready := false.B
       when (io.fifo_in.bits.data(7)) {
         op := DMConsts.dmi_OP_WRITE
         fsm_state := s_rdata3
@@ -62,6 +68,7 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
         io.dmi.req.bits.addr := addr | io.fifo_in.bits.data(6,0)
         io.dmi.req.valid := true.B
         io.fifo_in.ready := io.dmi.req.ready
+        data := io.dmi.resp.bits.data // TO BE REMOVED
       }
     }
     is (s_rdata3) {
@@ -86,6 +93,7 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       }
     }
     is (s_rdata0) {
+      io.dmi.resp.ready := false.B
       data := data | io.fifo_in.bits.data 
       io.dmi.req.bits.op := op
       io.dmi.req.bits.addr := addr
@@ -97,6 +105,7 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       }
     }
     is (s_thdr) {
+      io.dmi.resp.ready := false.B
       io.fifo_out.bits.data := DMConsts.dmi_RESP_SUCCESS
       when ((op === DMConsts.dmi_OP_READ) && io.dmi.resp.valid) {
         io.fifo_out.valid := true.B
@@ -113,28 +122,31 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       }
     }
     is (s_tdata3) {
-      io.fifo_out.bits.data := io.dmi.resp.bits.data >> 24.U
+      io.dmi.resp.ready := false.B
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(31,24) | data(31,24) // TO BE REMOVED
       io.fifo_out.valid := true.B
       when (io.fifo_out.fire() && io.dmi.resp.valid) {
         fsm_state := s_tdata2
       }
     }
     is (s_tdata2) {
-      io.fifo_out.bits.data := io.dmi.resp.bits.data(23,16)
+      io.dmi.resp.ready := false.B
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(23,16) | data(23,16) // TO BE REMOVED
       io.fifo_out.valid := true.B
       when (io.fifo_out.fire() && io.dmi.resp.valid) {
         fsm_state := s_tdata1
       }
     }
     is (s_tdata1) {
-      io.fifo_out.bits.data := io.dmi.resp.bits.data(15,8)
+      io.dmi.resp.ready := false.B
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(15,8) | data(15,8) // TO BE REMOVED
       io.fifo_out.valid := true.B
       when (io.fifo_out.fire() && io.dmi.resp.valid) {
         fsm_state := s_tdata0
       }
     }
     is (s_tdata0) {
-      io.fifo_out.bits.data := io.dmi.resp.bits.data(7,0)
+      io.fifo_out.bits.data := io.dmi.resp.bits.data(7,0) | data(7,0) // TO BE REMOVED
       io.fifo_out.valid := true.B
       io.dmi.resp.ready := io.fifo_out.ready
       when (io.fifo_out.fire()) {
@@ -150,7 +162,7 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       when (io.fifo_out.fire()) {
         fsm_state := s_idle
       }
-      io.dmi.resp.ready := true.B
+      io.dmi.resp.ready := false.B
     }
   }
 }

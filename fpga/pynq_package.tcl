@@ -1,8 +1,8 @@
 set root "."
 set design sodor_temp
 set partname "xc7z020clg400-1"
-set projdir ./ip_repo/sodor_temp_1.0
-set hdl_files [glob $root/hdl/* $root/../vsrc/plusarg_reader.v]
+set projdir ./pynq_ip_repo/sodor_temp_1.0
+set hdl_files [glob $root/pynq_hdl/* $root/../vsrc/plusarg_reader.v]
 puts $hdl_files
 create_project -force $design $projdir -part $partname
 set_property target_language Verilog [current_project]
@@ -28,9 +28,7 @@ set_property supported_families  { \
                      {artix7}     {Production} \
                      {artix7l}    {Production} \
                      {aartix7}    {Production} \
-                     {qartix7}    {Production} \
                      {zynq}       {Production} \
-                     {qzynq}      {Production} \
                      {azynq}      {Production} \
                      }   [ipx::current_core]
 
