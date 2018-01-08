@@ -23,7 +23,7 @@ $ ./dtmxsdb +verbose +p<PORT> +loadmem=<RISC-V ELF>
 ```
 To try the automated tests 
 ```bash
-make -i port=<xsdbserver> fpga-asm-tests
-make -i port=<xsdbserver> fpga-bmarks-test
-make -i port=<xsdbserver> fpga-run #to run all bmark and asm tests
+make -i port=<xsdbserver> zynq-asm-tests
+make -i port=<xsdbserver> zynq-bmarks-test
+make -i port=<xsdbserver> zynq-run #to run all bmark and asm tests
 ```

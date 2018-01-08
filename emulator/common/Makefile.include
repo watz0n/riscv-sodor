@@ -239,17 +239,29 @@ else
 endif
 endif
 
-$(addprefix fpga-, $(global_asm_tests)): fpga-%: $(global_tstdir)/% dtmxsdb
+$(addprefix zynq-, $(global_asm_tests)): zynq-%: $(global_tstdir)/% dtmxsdb
 	./dtmxsdb +p$(port) +loadmem=$<
 
-$(addprefix fpga-debug-, $(global_asm_tests)): fpga-debug-%: $(global_tstdir)/% dtmxsdb
+$(addprefix zynq-debug-, $(global_asm_tests)): zynq-debug-%: $(global_tstdir)/% dtmxsdb
 	./dtmxsdb +p$(port) +verbose +loadmem=$<	
 
-$(addprefix fpga-, $(global_bmarks)): fpga-%: $(global_bmarkdir)/%.riscv dtmxsdb
+$(addprefix zynq-, $(global_bmarks)): zynq-%: $(global_bmarkdir)/%.riscv dtmxsdb
 	./dtmxsdb +p$(port) +loadmem=$<
 
-$(addprefix fpga-debug-, $(global_bmarks)): fpga-debug-%: $(global_bmarkdir)/%.riscv dtmxsdb
+$(addprefix zynq-debug-, $(global_bmarks)): zynq-debug-%: $(global_bmarkdir)/%.riscv dtmxsdb
 	./dtmxsdb +p$(port) +verbose +loadmem=$<	
+
+$(addprefix artix-, $(global_asm_tests)): artix-%: $(global_tstdir)/% dtmglip
+	./dtmglip +p$(port) +loadmem=$<
+
+$(addprefix artix-debug-, $(global_asm_tests)): artix-debug-%: $(global_tstdir)/% dtmglip
+	./dtmglip +p$(port) +verbose +loadmem=$<	
+
+$(addprefix artix-, $(global_bmarks)): artix-%: $(global_bmarkdir)/%.riscv dtmglip
+	./dtmglip +p$(port) +loadmem=$<
+
+$(addprefix artix-debug-, $(global_bmarks)): artix-debug-%: $(global_bmarkdir)/%.riscv dtmglip
+	./dtmglip +p$(port) +verbose +loadmem=$<	
 
 output:
 	mkdir -p $@
@@ -294,10 +306,15 @@ run-asm-tests-debug: $(addprefix output/, $(addsuffix .vcd, $(global_asm_tests))
 	@echo; perl -ne 'print "  [$$1] $$ARGV \t$$2\n" if /\*{3}(.{8})\*{3}(.*)/' $(patsubst %.vpd,%.out,$^); echo;
 run-bmarks-test-debug: $(addprefix output/, $(addsuffix .riscv.vcd, $(global_bmarks)))
 	@echo; perl -ne 'print "  [$$1] $$ARGV \t$$2\n" if /\*{3}(.{8})\*{3}(.*)/' $(patsubst %.vpd,%.out,$^); echo;
-fpga-asm-tests: $(addprefix fpga-, $(global_asm_tests))
-fpga-bmarks-test: $(addprefix fpga-, $(global_bmarks))
+zynq-asm-tests: $(addprefix zynq-, $(global_asm_tests))
+zynq-bmarks-test: $(addprefix zynq-, $(global_bmarks))
 
-fpga-run: fpga-asm-tests fpga-bmarks-test
+zynq-run: zynq-asm-tests zynq-bmarks-test
+
+artix-asm-tests: $(addprefix artix-, $(global_asm_tests))
+artix-bmarks-test: $(addprefix artix-, $(global_bmarks))
+
+artix-run: artix-asm-tests artix-bmarks-test
 
 run: run-asm-tests run-bmarks-test
 run-debug: run-asm-tests-debug run-bmarks-test-debug

@@ -71,17 +71,17 @@ uint32_t dtmxsdb_t::do_command(dtmxsdb_t::req r)
     if (message[i] == 254)
       message[++i] = 254;
     message[i + 1] = (r.data & 0xff000000) >> 24;
-    if (message[i + 1] == 254)
-      message[++i] = 254;
+    if ((r.data & 0xff000000) == 0xfe000000)
+      message[++i + 1] = 254;
     message[i + 2] = (r.data & 0x00ff0000) >> 16;
-    if (message[i + 2] == 254)
-      message[++i] = 254;
+    if ((r.data & 0x00ff0000) == 0x00fe0000) 
+      message[++i + 2] = 254;
     message[i + 3] = (r.data & 0x0000ff00) >> 8;
-    if (message[i + 3] == 254)
-      message[++i] = 254;
+    if ((r.data & 0x0000ff00) == 0x0000fe00) 
+      message[++i + 3] = 254;
     message[i + 4] = r.data & 0x000000ff;
-    if (message[i + 4] == 254)
-      message[++i] = 254;
+    if ((r.data & 0x000000ff) == 0x000000fe) 
+      message[++i + 4] = 254;
     if( ::write(sock , message , i+5) < 0)
     {
       puts("Send failed");
@@ -101,23 +101,22 @@ uint32_t dtmxsdb_t::do_command(dtmxsdb_t::req r)
   
   // Process Response
   i = 1;
+  data = 0;
   n = ::read(sock , response , 10);
-
   if (n == 2)
     return 0;
   else {
     data |= (response[i] << 24);
-    if (response[i] == 254)  i++;
+    if ((uint8_t)response[i] == 0xfe)  i++;
     data |= (response[i + 1] << 16);
-    if (response[i] == 254)  i++;
+    if ((uint8_t)response[i + 1] == 0xfe)  i++;
     data |= (response[i + 2] << 8);
-    if (response[i] == 254)  i++;
+    if ((uint8_t)response[i + 2] == 0xfe)  i++;
     data |= response[i + 3];
     if (log)
-      printf("Resp: %hhx\n", data);
+      printf("Resp: %x\n", data);
     return data;
   }
-
 }
 
 uint32_t dtmxsdb_t::read(uint32_t addr)
