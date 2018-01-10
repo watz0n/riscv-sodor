@@ -7,29 +7,6 @@
 # IP Integrator Tcl commands easier.
 ################################################################
 
-namespace eval _tcl {
-proc get_script_folder {} {
-   set script_path [file normalize [info script]]
-   set script_folder [file dirname $script_path]
-   return $script_folder
-}
-}
-variable script_folder
-set script_folder [_tcl::get_script_folder]
-
-################################################################
-# Check if script is running in correct Vivado version.
-################################################################
-set scripts_vivado_version 2017.4
-set current_vivado_version [version -short]
-
-if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
-   puts ""
-   catch {common::send_msg_id "BD_TCL-109" "ERROR" "This script was generated using Vivado <$scripts_vivado_version> and is being run in <$current_vivado_version> of Vivado. Please run the script in Vivado <$scripts_vivado_version> then open the design in Vivado <$current_vivado_version>. Upgrade the design by running \"Tools => Report => Report IP Status...\", then run write_bd_tcl to create an updated script."}
-
-   return 1
-}
-
 ################################################################
 # START
 ################################################################
@@ -43,7 +20,7 @@ if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
 
 set list_projs [get_projects -quiet]
 if { $list_projs eq "" } {
-   create_project project_1 myproj -part xc7a35ticsg324-1L
+   create_project project_1 myproj -part xc7a35ticsg324-1L -force
    set_property BOARD_PART digilentinc.com:arty:part0:1.1 [current_project]
 }
 
@@ -115,41 +92,6 @@ common::send_msg_id "BD_TCL-005" "INFO" "Currently the variable <design_name> is
 if { $nRet != 0 } {
    catch {common::send_msg_id "BD_TCL-114" "ERROR" $errMsg}
    return $nRet
-}
-
-set bCheckIPsPassed 1
-##################################################################
-# CHECK IPs
-##################################################################
-set bCheckIPs 1
-if { $bCheckIPs == 1 } {
-   set list_check_ips "\ 
-xilinx.com:ip:clk_wiz:5.4\
-xilinx.com:ip:mig_7series:4.0\
-xilinx.com:ip:proc_sys_reset:5.0\
-user.org:user:sodor_artix:1.0\
-"
-
-   set list_ips_missing ""
-   common::send_msg_id "BD_TCL-006" "INFO" "Checking if the following IPs exist in the project's IP catalog: $list_check_ips ."
-
-   foreach ip_vlnv $list_check_ips {
-      set ip_obj [get_ipdefs -all $ip_vlnv]
-      if { $ip_obj eq "" } {
-         lappend list_ips_missing $ip_vlnv
-      }
-   }
-
-   if { $list_ips_missing ne "" } {
-      catch {common::send_msg_id "BD_TCL-115" "ERROR" "The following IPs are not found in the IP Catalog:\n  $list_ips_missing\n\nResolution: Please add the repository containing the IP(s) to the project." }
-      set bCheckIPsPassed 0
-   }
-
-}
-
-if { $bCheckIPsPassed != 1 } {
-  common::send_msg_id "BD_TCL-1003" "WARNING" "Will not continue with creation of design due to the error(s) above."
-  return 3
 }
 
 
@@ -301,7 +243,11 @@ proc write_mig_file_design_1_mig_7series_0_2 { str_mig_prj_filepath } {
 }
 # End of write_mig_file_design_1_mig_7series_0_2()
 
+set ip_repos [list "./arty_ip_repo"]
+set other_repos [get_property ip_repo_paths [current_project]]
+set_property  ip_repo_paths  "$ip_repos $other_repos" [current_project]
 
+update_ip_catalog
 
 ##################################################################
 # DESIGN PROCs
@@ -458,7 +404,16 @@ proc create_root_design { parentCell } {
 ##################################################################
 # MAIN FLOW
 ##################################################################
-
+set projdir ./myproj
 create_root_design ""
-
+validate_bd_design
+make_wrapper -files [get_files $projdir/project_1.srcs/sources_1/bd/design_1/design_1.bd] -top
+add_files -norecurse $projdir/project_1.srcs/sources_1/bd/design_1/hdl/design_1_wrapper.v
+add_files -fileset constrs_1 -norecurse $projdir/../arty.xdc
+reset_run synth_1
+reset_run impl_1
+launch_runs synth_1 -jobs 4
+wait_on_run synth_1
+launch_runs impl_1 -jobs 4 -to_step write_bitstream
+wait_on_run impl_1
 
