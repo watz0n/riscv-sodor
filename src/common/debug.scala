@@ -114,6 +114,9 @@ class DebugModule(implicit p: Parameters) extends Module {
   io.debugmem.req.bits.typ := MT_W
   io.debugmem.req.valid := false.B
   io.dmi.resp.bits.resp := DMConsts.dmi_RESP_SUCCESS
+  io.debugmem.req.bits.fcn := 0.U
+  io.dmi.req.ready := true.B
+  
   val dmstatusReset  = Wire(new DMSTATUSFields())
   dmstatusReset := (new DMSTATUSFields()).fromBits(0.U)
   dmstatusReset.authenticated := true.B
@@ -131,6 +134,9 @@ class DebugModule(implicit p: Parameters) extends Module {
   abstractcsReset := (new ABSTRACTCSFields()).fromBits(0.U)
   abstractcsReset.datacount := DMConsts.nDataCount.U
   abstractcsReset.progsize := DMConsts.nProgBuf.U
+  val addr = RegEnable(io.dmi.req.bits.addr, io.dmi.req.fire()) // DMI Address
+  val op = RegEnable(io.dmi.req.bits.op, io.dmi.req.fire()) // DMI Op
+  val wdata = RegEnable(io.dmi.req.bits.data, io.dmi.req.fire()) // DMI Data
   val abstractcs = Reg(init = abstractcsReset)
   val command = Reg(new ACCESS_REGISTERFields())
   val dmcontrol = Reg(new DMCONTROLFields())
@@ -139,8 +145,7 @@ class DebugModule(implicit p: Parameters) extends Module {
   val data2 = Reg(UInt(xlen.W))  //arg2
   val sbaddr = Reg(UInt(xlen.W))
   val sbdata = Reg(UInt(xlen.W))
-  val memreadfire = Reg(init = false.B)
-  val coreresetval = Reg(init = true.B)
+  val resetcore = Reg(init = true.B)
 
   val read_map = collection.mutable.LinkedHashMap[Int,UInt](
     DMI_RegAddrs.DMI_ABSTRACTCS -> abstractcs.asUInt,
@@ -158,25 +163,16 @@ class DebugModule(implicit p: Parameters) extends Module {
     DMI_RegAddrs.DMI_SBCS -> sbcs.asUInt,
     DMI_RegAddrs.DMI_SBADDRESS0 -> sbaddr,
     DMI_RegAddrs.DMI_SBDATA0 -> sbdata)
-  val decoded_addr = read_map map { case (k, v) => k -> (io.dmi.req.bits.addr === k) }
+  val decoded_addr = read_map map { case (k, v) => k -> (addr === k) }
   val reqval = Reg(init = false.B)
   val dwreqval = Reg(init = false.B)
   val memongoing = Reg(init = false.B)
   val firstreaddone = Reg(init = false.B)
-  io.debugmem.resp.ready := io.dmi.resp.ready 
-  when(io.debugmem.req.fire()){
-    memongoing := true.B
-  }
-  when(io.debugmem.resp.fire()){
-    memongoing := false.B
-  }
-  val earlyrespond = Wire(UInt(xlen.W))
-  earlyrespond := Mux1H(for ((k, v) <- read_map) yield decoded_addr(k) -> v)
-  val wdata = io.dmi.req.bits.data
+  io.dmi.resp.bits.data := Mux1H(for ((k, v) <- read_map) yield decoded_addr(k) -> v)
   dmstatus.allhalted := dmcontrol.haltreq
   dmstatus.allrunning := dmcontrol.resumereq 
   io.dcpath.halt := dmstatus.allhalted && !dmstatus.allrunning
-  when ((io.dmi.req.bits.op === DMConsts.dmi_OP_WRITE) && io.dmi.req.valid){ 
+  when ((op === DMConsts.dmi_OP_WRITE) && io.dmi.resp.fire()){ 
     when(decoded_addr(DMI_RegAddrs.DMI_ABSTRACTCS)) { 
       val tempabstractcs = new ABSTRACTCSFields().fromBits(wdata)
       abstractcs.cmderr := tempabstractcs.cmderr 
@@ -218,28 +214,68 @@ class DebugModule(implicit p: Parameters) extends Module {
     when(decoded_addr(DMI_RegAddrs.DMI_SBADDRESS0)) { 
       sbaddr := wdata
     }
-    when(decoded_addr(DMI_RegAddrs.DMI_DATA0)) ( data0 := wdata )
-    when(decoded_addr(DMI_RegAddrs.DMI_DATA0+1)) ( data1 := wdata )
-    when(decoded_addr(DMI_RegAddrs.DMI_DATA0+2)) ( data2 := wdata )
+    when(decoded_addr(DMI_RegAddrs.DMI_DATA0)) { data0 := wdata }
+    when(decoded_addr(DMI_RegAddrs.DMI_DATA0+1)) { data1 := wdata }
+    when(decoded_addr(DMI_RegAddrs.DMI_DATA0+2)) { data2 := wdata }
   }
 
-  when(decoded_addr(DMI_RegAddrs.DMI_SBDATA0) && (io.dmi.req.bits.op === DMConsts.dmi_OP_WRITE)) {
-    sbdata := wdata
+  io.debugmem.resp.ready := io.dmi.resp.ready 
+  when(decoded_addr(DMI_RegAddrs.DMI_SBDATA0)) {
+    io.dmi.resp.valid := RegNext(io.debugmem.resp.fire())
+  } .otherwise {
+    io.dmi.resp.valid := RegNext(io.dmi.req.fire())
+  }
+
+  when(io.debugmem.req.fire()){
+    memongoing := true.B
+  }
+  when(io.debugmem.resp.fire()){
+    memongoing := false.B
+    op := DMConsts.dmi_OP_NONE
+  }
+
+  when (decoded_addr(DMI_RegAddrs.DMI_SBDATA0) && (op === DMConsts.dmi_OP_WRITE)) {
     io.debugmem.req.bits.addr := sbaddr
-    io.debugmem.req.bits.data := sbdata
+    io.debugmem.req.bits.data := wdata
     io.debugmem.req.bits.fcn :=  M_XWR
-    when(io.dmi.req.valid && !memongoing){
-      dwreqval := true.B
-    } 
-    when(io.debugmem.req.ready && dwreqval){
-      dwreqval := false.B
-    }
-    io.debugmem.req.valid := dwreqval
-    when(sbcs.sbautoincrement && io.debugmem.resp.valid)
-    {
+    io.debugmem.req.valid := !memongoing
+    when (sbcs.sbautoincrement && io.debugmem.resp.fire()) {  sbaddr := sbaddr + 4.U  }
+  }
+
+  when (decoded_addr(DMI_RegAddrs.DMI_SBDATA0) && (op === DMConsts.dmi_OP_READ)) {
+    io.debugmem.req.bits.addr :=  sbaddr
+    io.debugmem.req.bits.fcn := M_XRD
+    io.debugmem.req.valid := !memongoing
+    // for async data readily available
+    // so capture it in reg
+    when (sbcs.sbautoincrement && io.debugmem.resp.fire()) {
+      sbdata := io.debugmem.resp.bits.data
       sbaddr := sbaddr + 4.U
     }
-    firstreaddone := false.B
+  }
+
+
+
+  io.resetcore := resetcore
+  // Following are two non-standard address used 
+  // 0x44 pull it out of reset
+  // 0x48 put it into reset
+  when (io.dmi.req.bits.addr === "h44".U && io.dmi.req.fire()) {
+    resetcore := false.B
+    dmstatus.allhalted := false.B
+    dmstatus.anyhalted := false.B
+    dmstatus.allrunning := true.B
+    dmstatus.anyrunning := true.B
+    dmstatus.allresumeack := true.B
+    dmstatus.anyresumeack := true.B
+  } .elsewhen (io.dmi.req.bits.addr === "h48".U && io.dmi.req.fire()) {
+    resetcore := true.B
+    dmstatus.allhalted := true.B
+    dmstatus.anyhalted := true.B
+    dmstatus.allrunning := false.B
+    dmstatus.anyrunning := false.B
+    dmstatus.allresumeack := false.B
+    dmstatus.anyresumeack := false.B
   }
 
   /// abstract cs command regfile access
@@ -256,85 +292,4 @@ class DebugModule(implicit p: Parameters) extends Module {
     }
     abstractcs.cmderr := 0.U
   }
-
-  val temp = Wire(init = false.B) // Async Mem Read
-  val waitready = Reg(init = false.B)
-
-  when (io.dmi.req.fire()) {
-    waitready := true.B
-  } .elsewhen (io.dmi.resp.fire()) {
-    waitready := false.B
-  }
-
-  io.dmi.req.ready := MuxCase(false.B, Array(
-    memongoing -> io.debugmem.resp.valid,
-    (io.debugmem.req.fire() && (io.dmi.req.bits.op === DMConsts.dmi_OP_WRITE) && io.dmi.req.valid) -> io.debugmem.resp.valid, // Async Mem Write
-    firstreaddone -> (Reg(next = io.debugmem.resp.valid) || temp),
-    !decoded_addr(DMI_RegAddrs.DMI_SBDATA0) -> io.dmi.req.valid
-  ))  
-  io.dmi.resp.valid := MuxCase(false.B, Array(
-    firstreaddone -> (Reg(next = io.debugmem.resp.valid) || temp),
-    memongoing -> io.debugmem.resp.valid,
-    (io.debugmem.req.fire() && (io.dmi.req.bits.op === DMConsts.dmi_OP_WRITE) && io.dmi.req.valid) -> io.debugmem.resp.valid, // Async Mem Write
-    !decoded_addr(DMI_RegAddrs.DMI_SBDATA0) -> (io.dmi.req.valid || waitready) 
-  ))
-
-  io.dmi.resp.bits.data := Mux(firstreaddone, sbdata , earlyrespond)
-  val once = Reg(init = true.B)
-  when ((decoded_addr(DMI_RegAddrs.DMI_SBDATA0) && (io.dmi.req.bits.op === DMConsts.dmi_OP_READ)) || (sbcs.sbautoread && firstreaddone)){
-    io.debugmem.req.bits.addr :=  sbaddr
-    io.debugmem.req.bits.fcn := M_XRD
-    io.debugmem.req.valid := io.dmi.req.valid && !memongoing && !Reg(next = io.debugmem.resp.valid)
-    // for async data readily available
-    // so capture it in reg
-    when(io.debugmem.resp.valid){
-      sbdata := io.debugmem.resp.bits.data
-      temp := true.B
-    }
-    memreadfire := true.B
-    firstreaddone := true.B
-  }
-  // (io.debugmem.req.valid && io.debugmem.resp.valid) -> for Async Cores
-  when((memreadfire && io.debugmem.resp.valid) || (io.debugmem.req.valid && io.debugmem.resp.valid))
-  {  // following is for sync data available in 
-    // next cycle memreadfire a reg allows 
-    // entering this reg only in next
-    sbdata := io.debugmem.resp.bits.data
-    temp := false.B
-    memreadfire := false.B
-    when(sbcs.sbautoincrement)
-    {
-      sbaddr := sbaddr + 4.U
-    }
-  } 
-
-  when(!decoded_addr(DMI_RegAddrs.DMI_SBDATA0)){
-    firstreaddone := io.debugmem.resp.valid
-    io.debugmem.req.valid := false.B
-    io.debugmem.req.bits.fcn := 0.U
-  }
-
-  io.resetcore := coreresetval
-
-  // Following are two non-standard address used 
-  // 0x44 pull it out of reset
-  // 0x48 put it into reset
-  when (io.dmi.req.bits.addr === "h44".U && io.dmi.req.valid) {
-    coreresetval := false.B
-    dmstatus.allhalted := false.B
-    dmstatus.anyhalted := false.B
-    dmstatus.allrunning := true.B
-    dmstatus.anyrunning := true.B
-    dmstatus.allresumeack := true.B
-    dmstatus.anyresumeack := true.B
-  } .elsewhen (io.dmi.req.bits.addr === "h48".U && io.dmi.req.valid) {
-    coreresetval := true.B
-    dmstatus.allhalted := true.B
-    dmstatus.anyhalted := true.B
-    dmstatus.allrunning := false.B
-    dmstatus.anyrunning := false.B
-    dmstatus.allresumeack := false.B
-    dmstatus.anyresumeack := false.B
-  }
-
 }
