@@ -106,13 +106,13 @@ uint32_t dtmxsdb_t::do_command(dtmxsdb_t::req r)
   if (n == 2)
     return 0;
   else {
-    data |= (response[i] << 24);
+    data |= ((response[i] << 24) & 0xff000000);
     if ((uint8_t)response[i] == 0xfe)  i++;
-    data |= (response[i + 1] << 16);
+    data |= ((response[i + 1] << 16) & 0x00ff0000);
     if ((uint8_t)response[i + 1] == 0xfe)  i++;
-    data |= (response[i + 2] << 8);
+    data |= ((response[i + 2] << 8) & 0x0000ff00);
     if ((uint8_t)response[i + 2] == 0xfe)  i++;
-    data |= response[i + 3];
+    data |= response[i + 3] & 0x000000ff;
     if (log)
       printf("Resp: %x\n", data);
     return data;
@@ -226,55 +226,15 @@ void dtmxsdb_t::read_chunk(uint64_t taddr, size_t len, void* dst)
 
   uint32_t * curr = (uint32_t*) dst;
   taddr = (taddr & 0x1fffff) | 0x10000000;
-  halt();
-  write(DMI_SBCS,DMI_SBCS_SBAUTOREAD | DMI_SBCS_SBAUTOINCREMENT);
+  //halt();
+  write(DMI_SBCS,DMI_SBCS_SBAUTOINCREMENT);
   write(DMI_SBADDRESS0,taddr);
   for (size_t i = 0; i < (len * 8 / xlen); i++){
     curr[i] = read(DMI_SBDATA0);
   }  
   write(DMI_SBCS,0);
 //  memcpy(data, read(DMI_SBDATA0), xlen/8);
-/*  uint64_t s0 = save_reg(S0);
-  uint64_t s1 = save_reg(S1);
-  
-  prog[0] = LOAD(xlen, S1, S0, 0);
-  prog[1] = ADDI(S0, S0, xlen/8);
-  prog[2] = EBREAK;
-
-  data[0] = (uint32_t) taddr;
-  if (xlen > 32) {
-    data[1] = (uint32_t) (taddr >> 32);
-  }
-
-  // Write s0 with the address, then execute program buffer.
-  // This will get S1 with the data and increment s0.
-  uint32_t command = AC_ACCESS_REGISTER_TRANSFER |
-    AC_ACCESS_REGISTER_WRITE |
-    AC_ACCESS_REGISTER_POSTEXEC |
-    AC_AR_SIZE(xlen) | 
-    AC_AR_REGNO(S0);
-
-  RUN_AC_OR_DIE(command, prog, 3, data, xlen/(4*8));
-
-  // TODO: could use autoexec here.
-  for (size_t i = 0; i < (len * 8 / xlen); i++){
-    command = AC_ACCESS_REGISTER_TRANSFER |
-      AC_AR_SIZE(xlen) |
-      AC_AR_REGNO(S1);
-    if ((i + 1) < (len * 8 / xlen)) {
-      command |= AC_ACCESS_REGISTER_POSTEXEC;
-    }
-    
-    RUN_AC_OR_DIE(command, 0, 0, data, xlen/(4*8));
-
-    memcpy(curr, data, xlen/8);
-    curr += xlen/8;
-  }
-
-  restore_reg(S0, s0);
-  restore_reg(S1, s1);*/
-
-  resume(); 
+  //resume(); 
 
 }
 
@@ -285,7 +245,7 @@ void dtmxsdb_t::write_chunk(uint64_t taddr, size_t len, const void* src)
 
   const uint8_t * curr = (const uint8_t*) src;
   taddr = (taddr & 0x1fffff) | 0x10000000;
-  halt();
+  //halt();
   if (src != 0)
     memcpy(data, curr, xlen/8);
   else 
@@ -301,68 +261,7 @@ void dtmxsdb_t::write_chunk(uint64_t taddr, size_t len, const void* src)
       data[0] = 0;
     write(DMI_SBDATA0,data[0]);
   }
-/*  uint64_t s0 = save_reg(S0);
-  uint64_t s1 = save_reg(S1);
-  
-  prog[0] = STORE(xlen, S1, S0, 0);
-  prog[1] = ADDI(S0, S0, xlen/8);
-  prog[2] = EBREAK;
-  
-  data[0] = (uint32_t) taddr;
-  if (xlen > 32) {
-    data[1] = (uint32_t) (taddr >> 32);
-  }
-
-  // Write the program (not used yet).
-  // Write s0 with the address. 
-  uint32_t command = AC_ACCESS_REGISTER_TRANSFER |
-    AC_ACCESS_REGISTER_WRITE |
-    AC_AR_SIZE(xlen) |
-    AC_AR_REGNO(S0);
-  
-  RUN_AC_OR_DIE(command, prog, 3, data, xlen/(4*8));
-
-  // Use Autoexec for more than one word of transfer.
-  // Write S1 with data, then execution stores S1 to
-  // 0(S0) and increments S0.
-  // Each time we write XLEN bits.
-  memcpy(data, curr, xlen/8);
-  curr += xlen/8;
-  
-  command = AC_ACCESS_REGISTER_TRANSFER |
-    AC_ACCESS_REGISTER_POSTEXEC |
-    AC_ACCESS_REGISTER_WRITE | 
-    AC_AR_SIZE(xlen) |
-    AC_AR_REGNO(S1);
-
-  RUN_AC_OR_DIE(command, 0, 0, data, xlen/(4*8));
-
-  uint32_t abstractcs;
-  for (size_t i = 1; i < (len * 8 / xlen); i++){
-    if (i == 1) {
-      write(DMI_ABSTRACTAUTO, 1 << DMI_ABSTRACTAUTO_AUTOEXECDATA_OFFSET);
-    }
-    memcpy(data, curr, xlen/8);
-    curr += xlen/8;
-    if (xlen == 64) {
-      write(DMI_DATA1, data[1]);
-    }
-    write(DMI_DATA0, data[0]); //Triggers a command w/ autoexec.
-    
-    do {
-      abstractcs = read(DMI_ABSTRACTCS);
-    } while (abstractcs & DMI_ABSTRACTCS_BUSY);
-    if ( get_field(abstractcs, DMI_ABSTRACTCS_CMDERR)) {
-      die(get_field(abstractcs, DMI_ABSTRACTCS_CMDERR));
-    }
-  }
-  if ((len * 8 / xlen) > 1) {
-    write(DMI_ABSTRACTAUTO, 0);
-  }
-  
-  restore_reg(S0, s0);
-  restore_reg(S1, s1);*/
-  resume();
+  //resume();
 }
 
 void dtmxsdb_t::die(uint32_t cmderr)
@@ -656,7 +555,7 @@ void set_blocking (int fd, int should_block)
             exit(1);
     }
 
-    tty.c_cc[VMIN]  = should_block ? 1 : 0;
+    tty.c_cc[VMIN]  = should_block ? 2 : 0;
     tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
 
     if (tcsetattr (fd, TCSANOW, &tty) != 0)
@@ -690,29 +589,6 @@ dtmxsdb_t::dtmxsdb_t(const std::vector<std::string>& args)
 dtmxsdb_t::~dtmxsdb_t()
 {
 }
-
-/*void dtmxsdb_t::tick(
-  bool      req_ready,
-  bool      resp_valid,
-  resp      resp_bits)
-{
-  if (!resp_wait) {
-    if (!req_wait) {
-      req_wait = true;
-    } else if (req_ready) {
-      req_wait = false;
-      resp_wait = true;
-    }
-  }
-
-  if (resp_valid) {
-    assert(resp_wait);
-    resp_wait = false;
-
-    resp_buf = resp_bits;
-    host.switch_to();
-  }
-}*/
 
 int main(int argc, char** argv)
 {

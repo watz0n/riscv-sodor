@@ -121,8 +121,6 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       }
     }
     is (s_tdata3) {
-      io.dmi.req.bits.op := op // TO BE REMOVED
-      io.dmi.req.bits.addr := addr // TO BE REMOVED
       io.dmi.resp.ready := false.B
       io.fifo_out.bits.data := io.dmi.resp.bits.data(31,24) 
       io.fifo_out.valid := true.B
@@ -131,8 +129,6 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       }
     }
     is (s_tdata2) {
-      io.dmi.req.bits.op := op // TO BE REMOVED
-      io.dmi.req.bits.addr := addr // TO BE REMOVED
       io.dmi.resp.ready := false.B
       io.fifo_out.bits.data := io.dmi.resp.bits.data(23,16) 
       io.fifo_out.valid := true.B
@@ -141,8 +137,6 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       }
     }
     is (s_tdata1) {
-      io.dmi.req.bits.op := op // TO BE REMOVED
-      io.dmi.req.bits.addr := addr // TO BE REMOVED
       io.dmi.resp.ready := false.B
       io.fifo_out.bits.data := io.dmi.resp.bits.data(15,8) 
       io.fifo_out.valid := true.B
@@ -151,8 +145,6 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
       }
     }
     is (s_tdata0) {
-      io.dmi.req.bits.op := op // TO BE REMOVED
-      io.dmi.req.bits.addr := addr // TO BE REMOVED
       io.fifo_out.bits.data := io.dmi.resp.bits.data(7,0) 
       io.fifo_out.valid := true.B
       io.dmi.resp.ready := io.fifo_out.ready

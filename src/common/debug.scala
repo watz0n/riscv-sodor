@@ -219,11 +219,13 @@ class DebugModule(implicit p: Parameters) extends Module {
     when(decoded_addr(DMI_RegAddrs.DMI_DATA0+2)) { data2 := wdata }
   }
 
-  io.debugmem.resp.ready := io.dmi.resp.ready 
+  io.debugmem.resp.ready := true.B 
+  val waitrespack = Reg(Bool()) // Hold Valid Signal till resp is ACK'ed
+  waitrespack := io.dmi.resp.valid && !io.dmi.resp.ready 
   when(decoded_addr(DMI_RegAddrs.DMI_SBDATA0)) {
-    io.dmi.resp.valid := RegNext(io.debugmem.resp.fire())
+    io.dmi.resp.valid := RegNext(io.debugmem.resp.valid) || waitrespack
   } .otherwise {
-    io.dmi.resp.valid := RegNext(io.dmi.req.fire())
+    io.dmi.resp.valid := RegNext(io.dmi.req.fire()) || waitrespack
   }
 
   when(io.debugmem.req.fire()){
@@ -260,7 +262,7 @@ class DebugModule(implicit p: Parameters) extends Module {
   // Following are two non-standard address used 
   // 0x44 pull it out of reset
   // 0x48 put it into reset
-  when (io.dmi.req.bits.addr === "h44".U && io.dmi.req.fire()) {
+  when (io.dmi.req.bits.addr === "h44".U && io.dmi.req.valid) {
     resetcore := false.B
     dmstatus.allhalted := false.B
     dmstatus.anyhalted := false.B
@@ -268,7 +270,7 @@ class DebugModule(implicit p: Parameters) extends Module {
     dmstatus.anyrunning := true.B
     dmstatus.allresumeack := true.B
     dmstatus.anyresumeack := true.B
-  } .elsewhen (io.dmi.req.bits.addr === "h48".U && io.dmi.req.fire()) {
+  } .elsewhen (io.dmi.req.bits.addr === "h48".U && io.dmi.req.valid) {
     resetcore := true.B
     dmstatus.allhalted := true.B
     dmstatus.anyhalted := true.B
