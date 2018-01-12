@@ -4,19 +4,12 @@ import chisel3._
 import freechips.rocketchip.config._
 import Constants._
 import Common._
-import Common.Util._
-import ReferenceChipBackend._
-import scala.collection.mutable.HashMap
 
 /*USE_FULL_BYPASSING = true  // turn on full bypassing (only stalls
                                   // on load-use). Otherwise rely
                                   // entirely on interlocking to handle
                                   // pipeline hazards.*/
 case object USE_FULL_BYPASSING extends Field[Boolean]
-
-object ReferenceChipBackend {
-    val initMap = new HashMap[Module, Bool]()
-}
 
 class Top extends Module 
 {

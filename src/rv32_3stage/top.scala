@@ -4,15 +4,6 @@ import chisel3._
 import freechips.rocketchip.config._
 import RV32_3stage.Constants._
 import Common._
-import Common.Util._
-import ReferenceChipBackend._
-import scala.collection.mutable.HashMap
-
-
-
-object ReferenceChipBackend {
-  val initMap = new HashMap[Module, Bool]()
-}
 
 class Top extends Module 
 {

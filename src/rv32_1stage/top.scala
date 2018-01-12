@@ -3,13 +3,7 @@ package Sodor
 import chisel3._
 import chisel3.iotesters.{ChiselFlatSpec, Driver, PeekPokeTester}
 import Common._
-import ReferenceChipBackend._
-import scala.collection.mutable.HashMap
 import freechips.rocketchip.config._
-
-object ReferenceChipBackend {
-  val initMap = new HashMap[Module, Bool]()
-}
 
 class Top extends Module 
 {
