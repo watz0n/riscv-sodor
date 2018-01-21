@@ -22,7 +22,7 @@ class WithArtixAdapter extends Config((site, here, up) => {
 })
 
 class glip_uart_toplevel extends BlackBox(Map("FREQ_CLK_IO" -> chisel3.core.IntParam(50000000),
-                                  "BAUD" -> chisel3.core.IntParam(115200),"WIDTH" -> chisel3.core.IntParam(8))) {
+                                  "BAUD" -> chisel3.core.IntParam(1000000),"WIDTH" -> chisel3.core.IntParam(8))) {
   val io = IO(new Bundle {
     val clk_io = Input(Clock())
     val clk = Input(Clock())

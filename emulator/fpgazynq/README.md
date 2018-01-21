@@ -1,4 +1,4 @@
-To build the bitstream refer to [README](https://github.com/librecores/riscv-sodor/blob/fpga/fpga/README.md)
+To build the bitstream refer to [README](fpga/README.md)
 Open xsdb console
 ```bash
 $ xsdb

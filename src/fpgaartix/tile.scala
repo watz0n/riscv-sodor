@@ -34,11 +34,6 @@ class FIFOtoDMI()(implicit p: Parameters) extends Module {
   val op = RegInit(0.U(2.W))
   val data = RegInit(0.U(32.W))
 
-  /** TO BE REMOVED portions are a workaround 
-    * for now since the DMI is not correctly 
-    * implemented in Debug Module debug.scala 
-    */
-
   /**           
     * Rx Header |W/R| Addr(7bits) |
     * Tx Header |    DMI Resp     | 
