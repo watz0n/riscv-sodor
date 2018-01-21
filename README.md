@@ -170,9 +170,12 @@ To know more about how the binaries are loaded into processors memory - [Overvie
 
 Running the RISC-V tests
 ========================
-
-    $ make run-emulator
-
+```bash
+    make run-emulator
+    # to run tests only on specific configuration
+    cd emulator/zynqsimtop # or emulator/rv32_1stage
+    make run
+```
 (Optional) Running debug version to produce signal traces
 ---------------------------------------------------------
 ```bash
