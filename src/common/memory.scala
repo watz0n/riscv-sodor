@@ -65,12 +65,16 @@ class d2h2i1(val addrWidth : Int) extends Bundle{
    val clk = Input(Clock()) 
 }
 
-class AsyncReadMem(val addrWidth : Int) extends BlackBox{
+//Reference: https://github.com/freechipsproject/chisel3/wiki/BlackBoxes#blackboxes-with-verilog-in-a-resource-file
+class AsyncReadMem(val addrWidth : Int) extends BlackBox with HasBlackBoxResource{
    val io = IO(new d2h2i1(addrWidth))
+   setResource("/AsyncReadMem.sv")
 }
 
-class SyncMem(val addrWidth : Int) extends BlackBox{
+//Reference: https://github.com/freechipsproject/chisel3/wiki/BlackBoxes#blackboxes-with-verilog-in-a-resource-file
+class SyncMem(val addrWidth : Int) extends BlackBox with HasBlackBoxResource{
    val io = IO(new d2h2i1(addrWidth))
+   setResource("/SyncMem.sv")
 }
 
 // from the pov of the datapath

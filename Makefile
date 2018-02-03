@@ -158,3 +158,22 @@ emulator/rv32_ucode/emulator-debug: $(wildcard $(srcDir)/src/common/*.scala) \
 jenkins-build:
 	make clean run-emulator
 	make reports
+
+#Append unit-test functions
+unit-test:
+	# Start Unit-Test Framework
+	@sbt "project rv32_1stage" "testOnly tests.RVDMIPeekPokeSpec"
+	@sbt "project rv32_2stage" "testOnly tests.RVDMIPeekPokeSpec"
+	@sbt "project rv32_3stage" "testOnly tests.RVDMIPeekPokeSpec"
+	@sbt "project rv32_5stage" "testOnly tests.RVDMIPeekPokeSpec"
+	# ucode test would generate error: "firrtl.passes.CheckChirrtl$UndeclaredReferenceException"
+	#@sbt "project rv32_ucode" "testOnly tests.RVDMIPeekPokeSpec"
+
+
+clean-unit:
+	@echo Remove generated meta-data: .in/.out/.cmd
+	@find -maxdepth 1 | grep -E '.*[0-9](.in|.out|.cmd)$$' | xargs rm -rf
+	@echo Remove tester directory
+	@rm -rf test_run_dir
+
+.PHONY: unit-test clean-unit

@@ -27,15 +27,20 @@ object BuildSettings extends Build {
           scalaSource in Test := baseDirectory.value / "../src/test",
           resourceDirectory in Compile := baseDirectory.value / "../vsrc"))
   lazy val rv32_1stage = Project("rv32_1stage", file("rv32_1stage"), settings = buildSettings  
-    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_1stage")) dependsOn(common)
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_1stage",
+          scalaSource in Test := baseDirectory.value / "../src/test")) dependsOn(common)
   lazy val rv32_2stage = Project("rv32_2stage", file("rv32_2stage"), settings = buildSettings  
-    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_2stage")) dependsOn(common)
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_2stage",
+          scalaSource in Test := baseDirectory.value / "../src/test")) dependsOn(common)
   lazy val rv32_3stage = Project("rv32_3stage", file("rv32_3stage"), settings = buildSettings  
-    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_3stage")) dependsOn(common)
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_3stage",
+          scalaSource in Test := baseDirectory.value / "../src/test")) dependsOn(common)
   lazy val rv32_5stage = Project("rv32_5stage", file("rv32_5stage"), settings = buildSettings  
-    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_5stage")) dependsOn(common)
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_5stage",
+          scalaSource in Test := baseDirectory.value / "../src/test")) dependsOn(common)
   lazy val rv32_ucode  = Project("rv32_ucode", file("rv32_ucode"), settings = buildSettings  
-    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_ucode")) dependsOn(common)
+    ++Seq(scalaSource in Compile := baseDirectory.value / "../src/rv32_ucode",
+          scalaSource in Test := baseDirectory.value / "../src/test")) dependsOn(common)
 
 }
 
